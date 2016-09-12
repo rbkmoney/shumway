@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class ShumwayApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ShumwayApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(ShumwayApplication.class, args);
+    }
 }

@@ -3,7 +3,7 @@
     <include resource="org/springframework/boot/logging/logback/base.xml"/>
     <jmxConfigurator/>
 
-    <logger name="com.rbkmoney" level="DEBUG" />
+    <logger name="com.rbkmoney" level="DEBUG"/>
     <root level="INFO">
     </root>
 
