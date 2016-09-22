@@ -12,10 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by vpankrashkin on 16.09.16.
@@ -98,7 +101,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 com.rbkmoney.shumway.domain.PostingPlanLog savedDomainPlanLog = planService.getSharedPostingPlan(postingPlan.getId());
                 if (savedDomainPlanLog == null) {
                     log.error("Failed to create new posting plan and no matching plan was saved in db. This is inconsistency problem that might be fatal");
-                    throw new TException("Failed to create or update plan [cannot be resolved automaitcally]");
+                    throw new TException("Failed to create or update plan [cannot be resolved automatically]");
                 } else {
                     log.warn("Unable to change posting plan state: {} to new state: {}, [overridable: {}]", savedDomainPlanLog, receivedDomainPlanLog, planService.isOverridable(savedDomainPlanLog.getLastOperation(), receivedDomainPlanLog.getLastOperation()));
                     throw new InvalidRequest(Arrays.asList("Unable to change plan state"));
@@ -106,7 +109,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
             } else {
                 List<PostingLog> domainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getPlanId(), currDomainPlanLog.getLastOperation());
                 List<PostingLog> newDomainPostingLogs = compareWithExistingPostings(postingPlan.getBatch(), domainPostingLogs, currDomainPlanLog);
-                List<com.rbkmoney.shumway.domain.Account> accounts = getAndValidateAccounts(newDomainPostingLogs);
+                List<com.rbkmoney.shumway.domain.Account> accounts = getAndValidateAccounts(postingPlan.getBatch().stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currDomainPlanLog)).collect(Collectors.toList()));
                 log.debug("New posting logs: {}", newDomainPostingLogs);
                 if (newDomainPostingLogs.isEmpty()) {
                     log.info("This is duplicate or empty request");
@@ -257,14 +260,60 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     protected List<PostingLog> compareWithExistingPostings(List<Posting> newProtocolPostings, List<PostingLog> savedDomainPostingLogs, com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) throws TException {
         //TODO implement this correctly (check that postings're equal, new or missing postings're allowed for hold but not allowed for commit or rollback
-        Set<Long> savedPostingIds = savedDomainPostingLogs.stream().map(postingLog -> postingLog.getPostingId()).collect(Collectors.toSet());
-        List<Posting> filteredNewPostings = newProtocolPostings.stream().filter(posting -> true).collect(Collectors.toList());
-        for (Posting posting : newProtocolPostings) {
+        Map<Long, PostingLog> savedPostingMap = savedDomainPostingLogs.stream().collect(Collectors.toMap(PostingLog::getPostingId, Function.identity()));
+        List<Posting> filteredNewPostings = newProtocolPostings.stream().filter(posting -> !savedPostingMap.containsKey(posting.getId())).collect(Collectors.toList());
 
+        Map<Posting, String> wrongPostings = comparePostings(savedPostingMap, newProtocolPostings);
+
+        if (!wrongPostings.isEmpty()) {
+            throw new InvalidPostingParams(wrongPostings);
         }
-        return newProtocolPostings.stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currentDomainPlanLog)).collect(Collectors.toList());
+
+        return filteredNewPostings.stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currentDomainPlanLog)).collect(Collectors.toList());
     }
 
+    protected Map<Posting, String> comparePostings(Map<Long, PostingLog> savedPostingMap, List<Posting> newProtocolPostings) {
+        Map<Posting, String> wrongPostings = new HashMap<>();
+        for (Posting posting : newProtocolPostings) {
+            List<String> errorMessages = new ArrayList<>();
+            PostingLog postingLog = savedPostingMap.get(posting.getId());
+
+            if (postingLog == null) {
+                continue;
+            }
+
+            if (posting.getAmount() != postingLog.getAmount()) {
+                String message = String.format("incorrect amount: actual '%d', expected '%d'", posting.getAmount(), postingLog.getAmount());
+                errorMessages.add(message);
+            }
+
+            if (posting.getFromId() != postingLog.getFromAccountId()) {
+                String message = String.format("incorrect from_id: actual '%d', expected '%d'", posting.getFromId(), postingLog.getFromAccountId());
+                errorMessages.add(message);
+            }
+
+            if (posting.getToId() != postingLog.getToAccountId()) {
+                String message = String.format("incorrect to_id: actual '%d', expected '%d'", posting.getToId(), postingLog.getToAccountId());
+                errorMessages.add(message);
+            }
+
+            if (!posting.getCurrencySymCode().equals(postingLog.getCurrSymCode())) {
+                String message = String.format("incorrect currency_sym_code: actual '%d', expected '%d'", posting.getCurrencySymCode(), postingLog.getCurrSymCode());
+                errorMessages.add(message);
+            }
+
+            if (!posting.getDescription().equals(postingLog.getDescription())) {
+                String message = String.format("incorrect description: actual '%s', expected '%s'", posting.getDescription(), postingLog.getDescription());
+                errorMessages.add(message);
+            }
+
+            if (!errorMessages.isEmpty()) {
+                wrongPostings.put(posting, StringUtils.arrayToDelimitedString(errorMessages.toArray(), "; "));
+            }
+        }
+
+        return wrongPostings;
+    }
 
     /**
      * if state duplicate and all postings match -> must return empty list
@@ -277,11 +326,23 @@ public class AccounterHandler implements AccounterSrv.Iface {
     protected List<PostingLog> compareFinalWithExistingPostings(List<Posting> newProtocolPostings, List<PostingLog> savedDomainPostingLogs, com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) throws TException {
         //TODO implement this correctly (check that postings're equal, new or missing postings're allowed for hold but not allowed for commit or rollback
         //TODO >>mush check for posting subset
-        Set<Long> savedPostingIds = savedDomainPostingLogs.stream().map(postingLog -> postingLog.getPostingId()).collect(Collectors.toSet());
-        List<Posting> filteredNewPostings = newProtocolPostings.stream().filter(posting -> true).collect(Collectors.toList());
-        for (Posting posting : newProtocolPostings) {
+        Map<Long, PostingLog> savedPostingMap = savedDomainPostingLogs.stream().collect(Collectors.toMap(PostingLog::getPostingId, Function.identity()));
+        Set<Long> newProtocolPostingIds = newProtocolPostings.stream().map(newPosting -> newPosting.getId()).collect(Collectors.toSet());
+        List<Posting> filteredNewPostings = newProtocolPostings.stream().filter(posting -> !savedPostingMap.containsKey(posting.getId())).collect(Collectors.toList());
 
+        List<Posting> notFoundInNewPostings = savedDomainPostingLogs.stream().filter(posting -> !newProtocolPostingIds.contains(posting.getPostingId())).map(postingLog -> ProtocolConverter.convertFromDomainToPosting(postingLog)).collect(Collectors.toList());
+
+        if (!filteredNewPostings.isEmpty() || !notFoundInNewPostings.isEmpty()) {
+            List<String> errors = Stream.concat(filteredNewPostings.stream(), filteredNewPostings.stream()).map(posting -> String.format("Posting with id '%d' not found", posting.getId())).collect(Collectors.toList());
+            throw new InvalidRequest(errors);
         }
+
+        Map<Posting, String> wrongPostings = comparePostings(savedPostingMap, newProtocolPostings);
+
+        if (!wrongPostings.isEmpty()) {
+            throw new InvalidPostingParams(wrongPostings);
+        }
+
         return newProtocolPostings.stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currentDomainPlanLog)).collect(Collectors.toList());
     }
 
@@ -295,7 +356,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 errors.putIfAbsent(posting, "Source and target accounts cannot be the same");
             }
             if (postingLog.getAmount() < 0) {
-                errors.putIfAbsent(posting, "Amount cannot be negative");//errors cant be rewritten? yeah, it is.
+                errors.putIfAbsent(posting, "Amount cannot be negative");//errors cant be rewritten? yeah, it is. ;)
             }
             com.rbkmoney.shumway.domain.Account fromAccount = accountService.getAccount(postingLog.getFromAccountId());
             com.rbkmoney.shumway.domain.Account toAccount = accountService.getAccount(postingLog.getToAccountId());
