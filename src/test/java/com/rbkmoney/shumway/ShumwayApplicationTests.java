@@ -16,9 +16,10 @@ import static org.junit.Assert.*;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.DEFINED_PORT;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment=DEFINED_PORT)
+@SpringBootTest(webEnvironment = DEFINED_PORT)
 public class ShumwayApplicationTests {
     private AccounterSrv.Iface client = createClient("http://localhost:8022/accounter");
+
     @Test
     public void testAddGetAccount() throws TException {
         AccountPrototype prototype = new AccountPrototype("RUB");
@@ -44,16 +45,16 @@ public class ShumwayApplicationTests {
     @Test
     public void testGetNotExistingPlan() throws TException {
         try {
-            client.getPlan(Long.MAX_VALUE+"");
+            client.getPlan(Long.MAX_VALUE + "");
         } catch (PlanNotFound e) {
-            assertEquals(Long.MAX_VALUE+"", e.getPlanId());
+            assertEquals(Long.MAX_VALUE + "", e.getPlanId());
             return;
         }
     }
 
     @Test
     public void testAddEmptyGetPlan() throws TException {
-        String planId = System.currentTimeMillis()+"";
+        String planId = System.currentTimeMillis() + "";
         PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList());
         PostingPlanLog planLog = client.hold(postingPlan);
         assertEquals(postingPlan.getId(), planLog.getPlan().getId());
@@ -64,7 +65,7 @@ public class ShumwayApplicationTests {
     @Test
     public void testAddFullGetPlan() throws TException {
         long id = System.currentTimeMillis();
-        String planId = id+"";
+        String planId = id + "";
         Posting posting = new Posting(1, id, id, -1, "RU", "Desc");
         PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         PostingPlanLog planLog = null;
@@ -75,7 +76,7 @@ public class ShumwayApplicationTests {
             assertEquals("Source and target accounts cannot be the same", e.getWrongPostings().get(posting));
         }
 
-        posting =  new Posting(1, id-1, id, -1, "RU", "Desc");
+        posting = new Posting(1, id - 1, id, -1, "RU", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
             planLog = client.hold(postingPlan);
@@ -83,7 +84,7 @@ public class ShumwayApplicationTests {
             assertEquals(1, e.getWrongPostingsSize());
             assertEquals("Amount cannot be negative", e.getWrongPostings().get(posting));
         }
-        posting = new Posting(1, id-1, id, 1, "RU", "Desc");
+        posting = new Posting(1, id - 1, id, 1, "RU", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
             planLog = client.hold(postingPlan);
@@ -120,6 +121,18 @@ public class ShumwayApplicationTests {
         assertEquals(planLog.getPlan(), client.getPlan(postingPlan.getId()));
 
         assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlan));
+
+        Posting posting2 = new Posting(2, fromAccountId, toAccountId, 5, "RU", "Desc");
+        postingPlan = new PostingPlan(planId, Arrays.asList(posting, posting2));
+
+        try {
+            client.commitPlan(postingPlan);
+        } catch (InvalidRequest ex) {
+            assertEquals(1, ex.getErrorsSize());
+        }
+
+        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        client.commitPlan(postingPlan);
 
     }
 
