@@ -4,6 +4,7 @@ import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
+import org.assertj.core.util.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -129,6 +130,22 @@ public class ShumwayApplicationTests {
             client.commitPlan(postingPlan);
         } catch (InvalidRequest ex) {
             assertEquals(1, ex.getErrorsSize());
+            assertEquals("Posting with id '2' not found", ex.getErrors().get(0));
+        }
+
+        postingPlan = new PostingPlan(planId, Lists.emptyList());
+        try {
+            client.commitPlan(postingPlan);
+        } catch (InvalidRequest ex) {
+            assertEquals(1, ex.getErrorsSize());
+            assertEquals("Posting with id '1' not found", ex.getErrors().get(0));
+        }
+
+        postingPlan = new PostingPlan(planId, Arrays.asList(posting2));
+        try {
+            client.commitPlan(postingPlan);
+        } catch (InvalidRequest ex) {
+            assertEquals(2, ex.getErrorsSize());
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));

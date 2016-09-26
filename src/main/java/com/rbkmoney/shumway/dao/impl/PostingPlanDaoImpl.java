@@ -31,14 +31,14 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
     @Override
     public PostingPlanLog addOrUpdatePlanLog(PostingPlanLog planLog) throws DaoException {
-        final  String sql = "insert into shm.plan_log (plan_id, last_access_time, last_operation) values (:plan_id, :last_access_time, :last_operation::shm.posting_operation_type) on conflict (plan_id) do update set last_access_time=:last_access_time, last_operation=:last_operation::shm.posting_operation_type, last_request_id=shm.plan_log.last_request_id+1 where shm.plan_log.last_operation=:overridable_operation::shm.posting_operation_type returning *";
+        final String sql = "insert into shm.plan_log (plan_id, last_access_time, last_operation) values (:plan_id, :last_access_time, :last_operation::shm.posting_operation_type) on conflict (plan_id) do update set last_access_time=:last_access_time, last_operation=:last_operation::shm.posting_operation_type, last_request_id=shm.plan_log.last_request_id+1 where shm.plan_log.last_operation=:overridable_operation::shm.posting_operation_type returning *";
         MapSqlParameterSource params = createParams(planLog, PostingOperation.HOLD);
         try {
             return getNamedParameterJdbcTemplate().queryForObject(sql, params, planRowMapper);
         } catch (EmptyResultDataAccessException e) {
             return null;
         } catch (NestedRuntimeException e) {
-            throw  new DaoException(e);
+            throw new DaoException(e);
         }
     }
 
@@ -52,7 +52,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         } catch (EmptyResultDataAccessException e) {
             return null;
         } catch (NestedRuntimeException e) {
-            throw  new DaoException(e);
+            throw new DaoException(e);
         }
     }
 
@@ -65,7 +65,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         } catch (EmptyResultDataAccessException e) {
             return null;
         } catch (NestedRuntimeException e) {
-            throw  new DaoException(e);
+            throw new DaoException(e);
         }
     }
 
@@ -78,7 +78,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         } catch (EmptyResultDataAccessException e) {
             return null;
         } catch (NestedRuntimeException e) {
-            throw  new DaoException(e);
+            throw new DaoException(e);
         }
     }
 
@@ -116,7 +116,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
             for (int j = 0; j < updateCounts[i].length; ++j) {
                 checked = true;
                 if (updateCounts[i][j] != 1) {
-                    throw new DaoException("Posting log creation returned unexpected update count: "+updateCounts[i][j]);
+                    throw new DaoException("Posting log creation returned unexpected update count: " + updateCounts[i][j]);
                 }
             }
         }

@@ -158,7 +158,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                     throw new InvalidRequest(Arrays.asList("Unable to change plan state"));
                 }
             } else {
-                List<PostingLog> domainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getPlanId(), currDomainPlanLog.getLastOperation());
+                List<PostingLog> domainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getPlanId(), PostingOperation.HOLD);
 
                 List<PostingLog> newLogs = compareFinalWithExistingPostings(postingPlan.getBatch(), domainPostingLogs, currDomainPlanLog);
                 if (newLogs.isEmpty()) {
@@ -333,7 +333,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
         List<Posting> notFoundInNewPostings = savedDomainPostingLogs.stream().filter(posting -> !newProtocolPostingIds.contains(posting.getPostingId())).map(postingLog -> ProtocolConverter.convertFromDomainToPosting(postingLog)).collect(Collectors.toList());
 
         if (!filteredNewPostings.isEmpty() || !notFoundInNewPostings.isEmpty()) {
-            List<String> errors = Stream.concat(filteredNewPostings.stream(), filteredNewPostings.stream()).map(posting -> String.format("Posting with id '%d' not found", posting.getId())).collect(Collectors.toList());
+            List<String> errors = Stream.concat(filteredNewPostings.stream(), notFoundInNewPostings.stream()).map(posting -> String.format("Posting with id '%d' not found", posting.getId())).collect(Collectors.toList());
             throw new InvalidRequest(errors);
         }
 

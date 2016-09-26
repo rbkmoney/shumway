@@ -30,8 +30,8 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <db.url.host.name>192.168.99.100</db.url.host.name>
-                <db.url.host.port>32768</db.url.host.port>
+                <db.url.host.name>localhost</db.url.host.name>
+                <db.url.host.port>5432</db.url.host.port>
                 <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
                 <shm.db.user>postgres</shm.db.user>
                 <shm.db.password>postgres</shm.db.password>
