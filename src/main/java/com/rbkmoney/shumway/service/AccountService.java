@@ -1,13 +1,13 @@
 package com.rbkmoney.shumway.service;
 
+import com.rbkmoney.damsel.accounter.Posting;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by vpankrashkin on 16.09.16.
@@ -27,8 +27,13 @@ public class AccountService {
         return accountDao.get(id);
     }
 
-    public Map<Long, Account> getAccounts(Collection<Long> ids) {
-        return ids.stream().collect(Collectors.toMap(id -> id, id -> getAccount(id)));
+    public Map<Long, Account> getAccountsByPosting(Collection<Posting> postings) {
+        Set<Long> accountIds = postings.stream().flatMap(posting -> Stream.of(posting.getFromId(), posting.getToId())).collect(Collectors.toSet());//optimize if necessary
+        return getAccountsById(accountIds);
+    }
+
+    public Map<Long, Account> getAccountsById(Collection<Long> ids) {
+        return accountDao.get(ids).stream().collect(Collectors.toMap(account -> account.getId(), Function.identity()));
     }
 
     public StatefulAccount getStatefulAccount(long id) {

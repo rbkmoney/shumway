@@ -5,6 +5,7 @@ import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.net.URI;
 import java.util.Arrays;
 
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.DEFINED_PORT;
 
@@ -74,7 +76,7 @@ public class ShumwayApplicationTests {
             planLog = client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Source and target accounts cannot be the same", e.getWrongPostings().get(posting));
+            assertEquals("Source and target accounts cannot be the same; Amount cannot be negative", e.getWrongPostings().get(posting));
         }
 
         posting = new Posting(1, id - 1, id, -1, "RU", "Desc");
@@ -91,7 +93,7 @@ public class ShumwayApplicationTests {
             planLog = client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Source account not found", e.getWrongPostings().get(posting));
+            assertThat(e.getWrongPostings().get(posting), matchesPattern("Source account not found by id: \\d+; Target account not found by id: \\d+"));
         }
 
         long fromAccountId = client.createAccount(new AccountPrototype(posting.getCurrencySymCode()));
@@ -101,7 +103,7 @@ public class ShumwayApplicationTests {
             planLog = client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Target account not found", e.getWrongPostings().get(posting));
+            assertThat(e.getWrongPostings().get(posting), matchesPattern("Target account not found by id: \\d+"));
         }
 
         long toAccountId = client.createAccount(new AccountPrototype(posting.getCurrencySymCode()));
@@ -111,7 +113,7 @@ public class ShumwayApplicationTests {
             planLog = client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Referred currency code is not equal to account code: RU", e.getWrongPostings().get(posting));
+            assertThat(e.getWrongPostings().get(posting), matchesPattern("Account \\(\\d+\\) currency code is not equal: expected: RU, actual: ERR; Account \\(\\d+\\) currency code is not equal: expected: RU, actual: ERR"));
         }
 
         posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
@@ -128,24 +130,25 @@ public class ShumwayApplicationTests {
 
         try {
             client.commitPlan(postingPlan);
-        } catch (InvalidRequest ex) {
-            assertEquals(1, ex.getErrorsSize());
-            assertEquals("Posting with id '2' not found", ex.getErrors().get(0));
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertEquals("New and old postings received in same plan, new posting is not allowed", ex.getWrongPostings().get(posting2));
         }
 
         postingPlan = new PostingPlan(planId, Lists.emptyList());
         try {
             client.commitPlan(postingPlan);
-        } catch (InvalidRequest ex) {
-            assertEquals(1, ex.getErrorsSize());
-            assertEquals("Posting with id '1' not found", ex.getErrors().get(0));
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertEquals("Saved posting with id: '1' is not found in received data", ex.getWrongPostings().get(posting));
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting2));
         try {
             client.commitPlan(postingPlan);
-        } catch (InvalidRequest ex) {
-            assertEquals(2, ex.getErrorsSize());
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertEquals("Posting not found", ex.getWrongPostings().get(posting2));
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));

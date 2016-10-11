@@ -4,6 +4,7 @@ import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.*;
 import org.springframework.core.NestedRuntimeException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -16,10 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -91,6 +89,16 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             throw new DaoException(e);
         }
 
+    }
+
+    @Override
+    public List<Account> get(Collection<Long> ids) throws DaoException {
+        final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE " + (ids.isEmpty() ? "false" :  "id in ("+StringUtils.collectionToDelimitedString(ids, ",")+")");
+        try {
+            return getJdbcTemplate().query(sql, accountMapper);
+        } catch (NestedRuntimeException e) {
+            throw new DaoException(e);
+        }
     }
 
     @Override
