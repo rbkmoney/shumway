@@ -5,7 +5,7 @@ import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
-import org.hamcrest.Matchers;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,8 +13,12 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.hamcrest.Matchers.*;
+import static com.rbkmoney.shumway.handler.AccounterValidator.*;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.*;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.DEFINED_PORT;
 
@@ -56,7 +60,7 @@ public class ShumwayApplicationTests {
     }
 
     @Test
-    public void testAddEmptyGetPlan() throws TException {
+    public void testEmptyHoldGetPlan() throws TException {
         String planId = System.currentTimeMillis() + "";
         PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList());
         PostingPlanLog planLog = client.hold(postingPlan);
@@ -66,59 +70,82 @@ public class ShumwayApplicationTests {
     }
 
     @Test
-    public void testAddFullGetPlan() throws TException {
+    public void testErrHoldGetPlan() throws TException {
         long id = System.currentTimeMillis();
         String planId = id + "";
         Posting posting = new Posting(1, id, id, -1, "RU", "Desc");
         PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        PostingPlanLog planLog = null;
         try {
-            planLog = client.hold(postingPlan);
+            client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Source and target accounts cannot be the same; Amount cannot be negative", e.getWrongPostings().get(posting));
+            assertThat(e.getWrongPostings().get(posting), genMatcher(SOURCE_TARGET_ACC_EQUAL_ERR, AMOUNT_NEGATIVE_ERR));
         }
 
         posting = new Posting(1, id - 1, id, -1, "RU", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
-            planLog = client.hold(postingPlan);
+            client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertEquals("Amount cannot be negative", e.getWrongPostings().get(posting));
+            assertThat(e.getWrongPostings().get(posting), genMatcher(AMOUNT_NEGATIVE_ERR));
         }
         posting = new Posting(1, id - 1, id, 1, "RU", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
-            planLog = client.hold(postingPlan);
+            client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertThat(e.getWrongPostings().get(posting), matchesPattern("Source account not found by id: \\d+; Target account not found by id: \\d+"));
+            assertThat(e.getWrongPostings().get(posting), genMatcher(SRC_ACC_NOT_FOUND_ERR, DST_ACC_NOT_FOUND_ERR));
         }
 
-        long fromAccountId = client.createAccount(new AccountPrototype(posting.getCurrencySymCode()));
-        posting = new Posting(1, fromAccountId, id, 1, "RU", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
-            planLog = client.hold(postingPlan);
+            client.getPlan(postingPlan.getId());
+        } catch (PlanNotFound e) {
+            assertEquals(planId, e.getPlanId());
+        }
+    }
+
+    @Test
+    public void testErrAccountHold() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long fromAccountId = client.createAccount(new AccountPrototype("RU"));
+        Posting posting = new Posting(1, fromAccountId, id, 1, "RU", "Desc");
+        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+
+        try {
+            client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertThat(e.getWrongPostings().get(posting), matchesPattern("Target account not found by id: \\d+"));
+            assertThat(e.getWrongPostings().get(posting), genMatcher(DST_ACC_NOT_FOUND_ERR));
         }
 
         long toAccountId = client.createAccount(new AccountPrototype(posting.getCurrencySymCode()));
         posting = new Posting(1, fromAccountId, toAccountId, 1, "ERR", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         try {
-            planLog = client.hold(postingPlan);
+            client.hold(postingPlan);
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertThat(e.getWrongPostings().get(posting), matchesPattern("Account \\(\\d+\\) currency code is not equal: expected: RU, actual: ERR; Account \\(\\d+\\) currency code is not equal: expected: RU, actual: ERR"));
+            assertThat(e.getWrongPostings().get(posting), genMatcher(ACC_CURR_CODE_NOT_EQUAL_ERR, ACC_CURR_CODE_NOT_EQUAL_ERR));
         }
 
         posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        planLog = client.hold(postingPlan);
+        client.hold(postingPlan);
+    }
+
+    @Test
+    public void testAddFullGetPlan() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long fromAccountId = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId = client.createAccount(new AccountPrototype("RU"));
+
+        Posting posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
+        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        PostingPlanLog planLog = client.hold(postingPlan);
 
         assertEquals(planLog.getPlan(), client.getPlan(planLog.getPlan().getId()));
         assertEquals(planLog.getPlan(), client.getPlan(postingPlan.getId()));
@@ -132,7 +159,13 @@ public class ShumwayApplicationTests {
             client.commitPlan(postingPlan);
         } catch (InvalidPostingParams ex) {
             assertEquals(1, ex.getWrongPostingsSize());
-            assertEquals("New and old postings received in same plan, new posting is not allowed", ex.getWrongPostings().get(posting2));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NEW_OLD_RECEIVED_ERR));
+        }
+        try {
+            client.rollbackPlan(postingPlan);
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NEW_OLD_RECEIVED_ERR));
         }
 
         postingPlan = new PostingPlan(planId, Lists.emptyList());
@@ -140,7 +173,13 @@ public class ShumwayApplicationTests {
             client.commitPlan(postingPlan);
         } catch (InvalidPostingParams ex) {
             assertEquals(1, ex.getWrongPostingsSize());
-            assertEquals("Saved posting with id: '1' is not found in received data", ex.getWrongPostings().get(posting));
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
+        }
+        try {
+            client.rollbackPlan(postingPlan);
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting2));
@@ -148,11 +187,31 @@ public class ShumwayApplicationTests {
             client.commitPlan(postingPlan);
         } catch (InvalidPostingParams ex) {
             assertEquals(1, ex.getWrongPostingsSize());
-            assertEquals("Posting not found", ex.getWrongPostings().get(posting2));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NOT_FOUND_ERR));
+        }
+        try {
+            client.rollbackPlan(postingPlan);
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NOT_FOUND_ERR));
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
         client.commitPlan(postingPlan);
+
+        try {
+            client.hold(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
+        }
+
+        client.commitPlan(postingPlan);
+
+        try {
+            client.rollbackPlan(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
+        }
 
     }
 
@@ -164,6 +223,26 @@ public class ShumwayApplicationTests {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Matcher genMatcher(String... msgPatterns) {
+        return matchesPattern(generateMessage(convertToPattern(msgPatterns)));
+    }
+
+    public static String convertToPattern(String formatString) {
+
+        return escapeRegex(formatString).replaceAll("%d", "\\\\d+").replaceAll("%s", "\\\\w+");
+    }
+
+    public static Collection<String> convertToPattern(String... formatStrings) {
+        return Stream.of(formatStrings).map(str -> convertToPattern(str)).collect(Collectors.toList());
+    }
+
+
+
+
+    public static String escapeRegex(String str) {
+        return str.replaceAll("[\\<\\(\\[\\{\\\\\\^\\-\\=\\$\\!\\|\\]\\}\\)‌​\\?\\*\\+\\.\\>]", "\\\\$0");
     }
 
 }

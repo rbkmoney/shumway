@@ -13,11 +13,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+
+import static com.rbkmoney.shumway.handler.AccounterValidator.validatePlanNotFixedResult;
 
 /**
  * Created by vpankrashkin on 16.09.16.
@@ -83,7 +84,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
             PostingOperation prevOperation = oldDomainPlanLog == null ? PostingOperation.HOLD : oldDomainPlanLog.getLastOperation();
             if (currDomainPlanLog == null) {
-                throw processPlanNotFixed(receivedDomainPlanLog, oldDomainPlanLog, !finalOp);
+                throw validatePlanNotFixedResult(receivedDomainPlanLog, oldDomainPlanLog, !finalOp);
             } else {
                 List<PostingLog> savedDomainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getPlanId(), prevOperation);
 
@@ -124,23 +125,6 @@ public class AccounterHandler implements AccounterSrv.Iface {
         } catch (TException e) {
             errHolder.set(e);
             throw new RuntimeException(e);
-        }
-    }
-
-    private TException processPlanNotFixed(com.rbkmoney.shumway.domain.PostingPlanLog receivedDomainPlanLog, com.rbkmoney.shumway.domain.PostingPlanLog oldDomainPlanLog, boolean failIfNoPlan) {
-        log.warn("Posting plan log create/update is not performed, trying to get saved plan");
-        com.rbkmoney.shumway.domain.PostingPlanLog savedDomainPlanLog = planService.getSharedPostingPlan(receivedDomainPlanLog.getPlanId());
-        if (savedDomainPlanLog == null) {
-            if (failIfNoPlan) {
-                log.error("Failed to create new posting plan and no matching plan was saved in db. This is inconsistency problem that might be fatal");
-                return new TException("Failed to create or update plan [cannot be resolved automatically]");
-            } else {
-                log.warn("No matching plan was found in db. This plan is probably not created");
-                return new InvalidRequest(Arrays.asList("Posting plan not found: " + receivedDomainPlanLog.getPlanId()));
-            }
-        } else {
-            log.warn("Unable to change posting plan state: {} to new state: {}, [overridable: {}]", savedDomainPlanLog, receivedDomainPlanLog, planService.isOverridable(savedDomainPlanLog.getLastOperation(), receivedDomainPlanLog.getLastOperation()));
-            return new InvalidRequest(Arrays.asList("Unable to change plan state: " + receivedDomainPlanLog.getPlanId()));
         }
     }
 

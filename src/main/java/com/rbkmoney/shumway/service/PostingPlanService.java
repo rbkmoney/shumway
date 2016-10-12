@@ -53,9 +53,5 @@ public class PostingPlanService {
         postingPlanDao.addPostingLogs(postingLogs);
     }
 
-    public boolean isOverridable(PostingOperation source, PostingOperation target) {
-        return source == PostingOperation.HOLD;
-    }
-
 
 }

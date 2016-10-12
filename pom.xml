@@ -20,7 +20,7 @@
         <spring.boot.admin.url></spring.boot.admin.url>
         <postgresql.jdbc.version>9.4.1210</postgresql.jdbc.version>
         <shm.db.schema>shm</shm.db.schema>
-        <db.url.name>accounter</db.url.name>
+        <db.url.name>shumway</db.url.name>
     </properties>
 
     <profiles>
@@ -30,6 +30,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
+                <db.url.name>accounter</db.url.name>
                 <db.url.host.name>192.168.99.100</db.url.host.name>
                 <db.url.host.port>32768</db.url.host.port>
                 <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
