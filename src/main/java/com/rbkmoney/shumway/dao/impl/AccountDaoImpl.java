@@ -4,7 +4,6 @@ import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.*;
 import org.springframework.core.NestedRuntimeException;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -52,7 +51,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public void addLogs(List<AccountLog> logs) throws DaoException {
-        final String sql = "INSERT INTO shm.account_log(plan_id, posting_id, request_id, account_id, creation_time, operation, amount) VALUES (?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?)";
+        final String sql = "INSERT INTO shm.account_log(plan_id, posting_id, request_id, account_id, creation_time, operation, amount, own_amount, available_amount, credit) VALUES (?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, logs.size(),
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
@@ -62,6 +61,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
                     ps.setTimestamp(5, Timestamp.from(argument.getCreationTime()));
                     ps.setString(6, argument.getOperation().getKey());
                     ps.setLong(7, argument.getAmount());
+                    ps.setLong(8, argument.getOwnAmount());
+                    ps.setLong(9, argument.getAvailableAmount());
+                    ps.setBoolean(10, argument.isCredit());
                 });
         boolean checked = false;
         for (int i = 0; i < updateCounts.length; ++i) {
@@ -103,10 +105,8 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public AmountState getAmountState(long accountId) throws DaoException {
-        final String sql = "select account_log.account_id, SUM(case WHEN (operation = :commit_status::shm.posting_operation_type) then amount else 0 end) as own_amount, SUM(case WHEN (operation =:commit_status::shm.posting_operation_type or (operation = :hold_status::shm.posting_operation_type and amount < 0)) then amount else 0 end) as available_amount from shm.account_log where account_id = :account_id group by account_id";
+        final String sql = "select account_log.account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id = :account_id group by account_id";
         MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("commit_status", PostingOperation.COMMIT.getKey());
-        params.addValue("hold_status", PostingOperation.HOLD.getKey());
         params.addValue("account_id", accountId);
         try {
             return getNamedParameterJdbcTemplate().queryForObject(sql, params, amountStatePairMapper).getValue();
@@ -119,10 +119,8 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public AmountState getAmountStateUpTo(long accountId, String planId) throws DaoException {
-        final String sql = "select account_id, SUM(case WHEN (operation = :commit_status::shm.posting_operation_type) then amount else 0 end) as own_amount, SUM(case WHEN (operation =:commit_status::shm.posting_operation_type or (operation = :hold_status::shm.posting_operation_type and amount < 0)) then amount else 0 end) as available_amount from shm.account_log where account_id = :account_id and id <= (select max(id) from shm.account_log where plan_id =:plan_id)";
+        final String sql = "select account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id = :account_id and id <= (select max(id) from shm.account_log where plan_id =:plan_id) GROUP by account_id";
         MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("commit_status", PostingOperation.COMMIT.getKey());
-        params.addValue("hold_status", PostingOperation.HOLD.getKey());
         params.addValue("account_id", accountId);
         params.addValue("plan_id", planId);
         try {
@@ -140,12 +138,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
-            final String sql = "select account_id, SUM(case WHEN (operation = :commit_status::shm.posting_operation_type) then amount else 0 end) as own_amount, SUM(case WHEN (operation =:commit_status::shm.posting_operation_type or (operation = :hold_status::shm.posting_operation_type and amount < 0)) then amount else 0 end) as available_amount from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+") group by account_id";
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("commit_status", PostingOperation.COMMIT.getKey());
-            params.addValue("hold_status", PostingOperation.HOLD.getKey());
+            final String sql = "select account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+") group by account_id";
             try {
-                return getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue()));
+                return getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue()));
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
             }
@@ -157,7 +152,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         //TODO rewrite this
         Map<Long, AmountState> stateMap = new HashMap<>();
         for (Long id: accountIds) {
-            AmountState amountState = getAmountState(id);
+            AmountState amountState = getAmountStateUpTo(id, planId);
             if (amountState != null) {
                 stateMap.put(id, amountState);
             }

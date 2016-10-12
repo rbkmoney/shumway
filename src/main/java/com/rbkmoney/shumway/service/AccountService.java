@@ -61,10 +61,43 @@ public class AccountService {
     public void addAccountLogs(List<PostingLog> postingLogs) {
        List<AccountLog> accountLogs = new ArrayList<>(postingLogs.size() * 2);
        for (PostingLog postingLog: postingLogs) {
-           accountLogs.add(new AccountLog(0, postingLog.getRequestId(), postingLog.getPostingId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), -postingLog.getAmount()));
-           accountLogs.add(new AccountLog(0, postingLog.getRequestId(), postingLog.getPostingId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getToAccountId(), postingLog.getOperation(), postingLog.getAmount()));
+           accountLogs.add(new AccountLog(0, postingLog.getRequestId(), postingLog.getPostingId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), getAmount(postingLog, true), getOwnAmount(postingLog, true), getAvailableAmount(postingLog, true), true));
+           accountLogs.add(new AccountLog(0, postingLog.getRequestId(), postingLog.getPostingId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getToAccountId(), postingLog.getOperation(), getAmount(postingLog, false), getOwnAmount(postingLog, false), getAvailableAmount(postingLog, false), false));
        }
        accountDao.addLogs(accountLogs);
     }
+
+    private long getOwnAmount(PostingLog postingLog, boolean isCredit) {
+        switch (postingLog.getOperation()) {
+            case HOLD:
+                return 0;
+            case COMMIT:
+                return getAmount(postingLog, isCredit);
+            case ROLLBACK:
+                return 0;
+            default:
+                throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
+        }
+    }
+
+    private long getAvailableAmount(PostingLog postingLog, boolean isCredit) {
+        switch (postingLog.getOperation()) {
+            case HOLD:
+                return isCredit ? -postingLog.getAmount() : 0;
+            case COMMIT:
+                return !isCredit ? getAmount(postingLog, isCredit) : 0;
+            case ROLLBACK:
+                return isCredit ? postingLog.getAmount() : 0;
+            default:
+                throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
+        }
+    }
+/**
+ * @param isCredit true - if it's the source in posting, false - if target (debit)
+ * */
+    private long getAmount(PostingLog postingLog, boolean isCredit) {
+        return isCredit ? -postingLog.getAmount() : postingLog.getAmount();
+    }
+
 
 }

@@ -94,7 +94,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 AccounterValidator.validateAccounts(notSavedProtocolPostings, accountMap);
 
                 log.debug("Saving posting logs: {}", notSavedProtocolPostings);
-                if (notSavedProtocolPostings.isEmpty()) {
+                if (notSavedProtocolPostings.isEmpty() || isFinalOperation(prevOperation)) {
                     log.info("This is duplicate or empty request");
                 } else {
                     List<PostingLog> notSavedDomainPostingLogs = notSavedProtocolPostings

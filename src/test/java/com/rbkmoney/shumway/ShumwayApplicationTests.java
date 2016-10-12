@@ -137,7 +137,7 @@ public class ShumwayApplicationTests {
     }
 
     @Test
-    public void testAddFullGetPlan() throws TException {
+    public void testHoldCommitPlan() throws TException {
         long id = System.currentTimeMillis();
         String planId = id + "";
         long fromAccountId = client.createAccount(new AccountPrototype("RU"));
@@ -149,6 +149,11 @@ public class ShumwayApplicationTests {
 
         assertEquals(planLog.getPlan(), client.getPlan(planLog.getPlan().getId()));
         assertEquals(planLog.getPlan(), client.getPlan(postingPlan.getId()));
+        assertEquals(2, planLog.getAffectedAccountsSize());
+        assertEquals("Debit includes hold for src available amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getAvailableAmount());
+        assertEquals("Debit doesn't include hold for src own amount ", 0, planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
+        assertEquals("Credit doesn't include hold for dst available amount", 0, planLog.getAffectedAccounts().get(toAccountId).getAvailableAmount());
+        assertEquals("Credit doesn't include hold for dst own amount", 0, planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
 
         assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlan));
 
@@ -197,7 +202,12 @@ public class ShumwayApplicationTests {
         }
 
         postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        client.commitPlan(postingPlan);
+        planLog = client.commitPlan(postingPlan);
+        assertEquals(2, planLog.getAffectedAccountsSize());
+        assertEquals("Debit includes commit for src available amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getAvailableAmount());
+        assertEquals("Debit includes commit for src own amount ", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
+        assertEquals("Credit includes commit for dst available amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getAvailableAmount());
+        assertEquals("Credit includes commit for dst own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
 
         try {
             client.hold(postingPlan);
@@ -205,7 +215,7 @@ public class ShumwayApplicationTests {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
 
-        client.commitPlan(postingPlan);
+        assertEquals("Duplicate request, result must be equal", planLog, client.commitPlan(postingPlan));
 
         try {
             client.rollbackPlan(postingPlan);
@@ -213,6 +223,40 @@ public class ShumwayApplicationTests {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
 
+        assertEquals("Duplicate request, result must be equal", planLog, client.commitPlan(postingPlan));
+    }
+
+    @Test
+    public void testHoldRollbackPlan() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long fromAccountId = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId = client.createAccount(new AccountPrototype("RU"));
+
+        Posting posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
+        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        PostingPlanLog planLog = client.hold(postingPlan);
+
+        assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlan));
+
+        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        planLog = client.rollbackPlan(postingPlan);
+
+        try {
+            client.hold(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
+        }
+
+        assertEquals("Duplicate request, result must be equal", planLog, client.rollbackPlan(postingPlan));
+
+        try {
+            client.commitPlan(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
+        }
+
+        assertEquals("Duplicate request, result must be equal", planLog, client.rollbackPlan(postingPlan));
     }
 
 
@@ -237,9 +281,6 @@ public class ShumwayApplicationTests {
     public static Collection<String> convertToPattern(String... formatStrings) {
         return Stream.of(formatStrings).map(str -> convertToPattern(str)).collect(Collectors.toList());
     }
-
-
-
 
     public static String escapeRegex(String str) {
         return str.replaceAll("[\\<\\(\\[\\{\\\\\\^\\-\\=\\$\\!\\|\\]\\}\\)‌​\\?\\*\\+\\.\\>]", "\\\\$0");
