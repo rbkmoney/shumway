@@ -14,6 +14,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,6 +36,7 @@ public class ShumwayApplicationTests {
         Account sentAccount = client.getAccountByID(id);
         assertNotNull(sentAccount);
         assertEquals(0, sentAccount.getAvailableAmount());
+        assertEquals(0, sentAccount.getOwnAmount());
         assertEquals(prototype.getCurrencySymCode(), sentAccount.getCurrencySymCode());
         assertEquals(prototype.getDescription(), sentAccount.getDescription());
     }
@@ -257,6 +259,159 @@ public class ShumwayApplicationTests {
         }
 
         assertEquals("Duplicate request, result must be equal", planLog, client.rollbackPlan(postingPlan));
+    }
+
+    @Test
+    public void testEmptyPlan() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        PostingPlan postingPlan = new PostingPlan(planId, Collections.emptyList());
+        try {
+            client.commitPlan(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_NOT_FOUND_ERR));
+        }
+        try {
+           client.rollbackPlan(postingPlan);
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_NOT_FOUND_ERR));
+        }
+        PostingPlanLog planLog = new PostingPlanLog(postingPlan);
+        planLog.setAffectedAccounts(Collections.emptyMap());
+
+        assertEquals(planLog, client.hold(postingPlan));
+
+        assertEquals(postingPlan, client.getPlan(planId));
+
+        Posting posting = new Posting(1, 0, 1, 1, "RU", "Desc");
+        try {
+            client.commitPlan(new PostingPlan(planId, Arrays.asList(posting)));
+        } catch (InvalidPostingParams e) {
+            assertThat(e.getWrongPostings().get(posting), genMatcher(POSTING_NOT_FOUND_ERR));
+        }
+
+        assertEquals(planLog, client.commitPlan(postingPlan));
+    }
+
+    @Test
+    public void testMultiplePlans() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long fromAccountId1 = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId1 = client.createAccount(new AccountPrototype("RU"));
+
+        long fromAccountId2 = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId2 = client.createAccount(new AccountPrototype("RU"));
+
+        //Create and hold plan1
+        Posting posting11 = new Posting(1, fromAccountId1, toAccountId1, 10, "RU", "Desc");
+        Posting posting12 = new Posting(2, fromAccountId2, fromAccountId1, 25, "RU", "Desc");
+        String planId1 = planId+"_1";
+        PostingPlan plan1 = new PostingPlan(planId1, Arrays.asList(posting11, posting12));
+        PostingPlanLog planLog1 = client.hold(plan1);
+        assertEquals(plan1, planLog1.getPlan());
+        assertEquals(3, planLog1.getAffectedAccountsSize());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(-10, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-25, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+
+        //Create and hold plan2
+        Posting posting21 = new Posting(1, fromAccountId1, toAccountId1, 7, "RU", "Desc");
+        Posting posting22 = new Posting(2, fromAccountId2, fromAccountId1, 18, "RU", "Desc");
+        String planId2 = planId+"_2";
+        PostingPlan plan2 = new PostingPlan(planId2, Arrays.asList(posting21, posting22));
+
+        PostingPlanLog planLog2 = client.hold(plan2);
+
+        assertEquals(plan2, planLog2.getPlan());
+        assertEquals(3, planLog2.getAffectedAccountsSize());
+
+        assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(-17, planLog2.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog2.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(0, planLog2.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+
+        //Commit plan2
+        planLog2 = client.commitPlan(plan2);
+
+        assertEquals(plan2, planLog2.getPlan());
+        assertEquals(3, planLog2.getAffectedAccountsSize());
+
+        assertEquals(11, planLog2.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(1, planLog2.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(7, planLog2.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(7, planLog2.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(-18, planLog2.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+
+        //Create and hold plan3
+        Posting posting31 = new Posting(1, fromAccountId1, toAccountId1, 70, "RU", "Desc");
+        Posting posting32 = new Posting(2, fromAccountId2, toAccountId2, 180, "RU", "Desc");
+        String planId3 = planId+"_3";
+        PostingPlan plan3 = new PostingPlan(planId3, Arrays.asList(posting31, posting32));
+
+        PostingPlanLog planLog3 = client.hold(plan3);
+
+        //Rollback plan3
+        planLog3 = client.rollbackPlan(plan3);
+
+        assertEquals(plan3, planLog3.getPlan());
+        assertEquals(4, planLog3.getAffectedAccountsSize());
+
+        assertEquals(11, planLog3.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(1, planLog3.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(7, planLog3.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(7, planLog3.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(-18, planLog3.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-43, planLog3.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+
+        assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getOwnAmount());
+        assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getAvailableAmount());
+
+        //Test that duplicate hold for plan1 returns same data
+        planLog1 = client.hold(plan1);
+        assertEquals(plan1, planLog1.getPlan());
+        assertEquals(3, planLog1.getAffectedAccountsSize());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(-10, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-25, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+
+        //Created and rollback plan3 before plan1 committed
+
+        //Commit plan1
+        planLog1 = client.commitPlan(plan1);
+
+        assertEquals(plan1, planLog1.getPlan());
+        assertEquals(3, planLog1.getAffectedAccountsSize());
+
+        assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+        assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+
+        assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+        assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+
+        assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+        assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
     }
 
 
