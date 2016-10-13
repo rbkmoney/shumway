@@ -1,6 +1,7 @@
 package com.rbkmoney.shumway.service;
 
 import com.rbkmoney.shumway.dao.PostingPlanDao;
+import com.rbkmoney.shumway.domain.Pair;
 import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.shumway.domain.PostingOperation;
 import com.rbkmoney.shumway.domain.PostingPlanLog;
@@ -29,20 +30,27 @@ public class PostingPlanService {
         return postingPlanDao.getExclusivePlanLog(planId);
     }
 
-    public PostingPlanLog updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
-        return postingPlanDao.updatePlanLog(planLog, overridableOperation);
+    /**
+     * @return Pair, contains old plan as a key and new/updated plan as a value
+     * */
+    public Pair<PostingPlanLog, PostingPlanLog>  updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
+        PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
+        PostingPlanLog newPlanLog = postingPlanDao.updatePlanLog(planLog, overridableOperation);
+
+        return new Pair<>(oldPlanLog, newPlanLog);
     }
 
-    public PostingPlanLog createOrUpdatePostingPlan(PostingPlanLog planLog) {
-        return postingPlanDao.addOrUpdatePlanLog(planLog);
+    /**
+     * @return Pair, contains old plan as a key and new/updated plan as a value
+     * */
+    public Pair<PostingPlanLog, PostingPlanLog> createOrUpdatePostingPlan(PostingPlanLog planLog) {
+        PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
+        PostingPlanLog newPlanLog = postingPlanDao.addOrUpdatePlanLog(planLog);
+        return new Pair<>(oldPlanLog, newPlanLog);
     }
 
     public void addPostingLogs(List<PostingLog> postingLogs) {
         postingPlanDao.addPostingLogs(postingLogs);
-    }
-
-    public boolean isOverridable(PostingOperation source, PostingOperation target) {
-        return source == PostingOperation.HOLD;
     }
 
 

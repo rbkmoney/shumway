@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.rbkmoney</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>1.4.0.RELEASE</version>
+        <version>1.4.1.RELEASE</version>
     </parent>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -30,8 +30,9 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <db.url.host.name>localhost</db.url.host.name>
-                <db.url.host.port>5432</db.url.host.port>
+                <db.url.name>accounter</db.url.name>
+                <db.url.host.name>192.168.99.100</db.url.host.name>
+                <db.url.host.port>32768</db.url.host.port>
                 <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
                 <shm.db.user>postgres</shm.db.user>
                 <shm.db.password>postgres</shm.db.password>
@@ -203,6 +204,11 @@
             <artifactId>postgresql</artifactId>
             <version>${postgresql.jdbc.version}</version>
         </dependency>
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>4.6</version>
+        </dependency>
         <!--Spring libs-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -225,6 +231,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-library</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--RBK libs-->
         <dependency>
@@ -240,7 +252,19 @@
         <dependency>
             <groupId>com.rbkmoney</groupId>
             <artifactId>damsel</artifactId>
-            <version>1.78-7117acb</version>
+            <version>1.92-1a7ad73</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rbkmoney.logback</groupId>
+            <artifactId>nop-rolling</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!--Test libs-->
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-junit</artifactId>
+            <version>2.0.0.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -264,7 +288,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-
         </plugins>
     </build>
 

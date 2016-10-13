@@ -24,6 +24,9 @@ CREATE TABLE shm.account_log
   creation_time timestamp without time zone NOT NULL,
   operation shm.posting_operation_type NOT NULL,
   amount bigint NOT NULL,
+  own_amount bigint NOT NULL,
+  available_amount bigint NOT NULL,
+  credit BOOLEAN NOT NULL,
   CONSTRAINT account_log_pkey PRIMARY KEY (id)
 )
 WITH (

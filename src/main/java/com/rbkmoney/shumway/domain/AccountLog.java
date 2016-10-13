@@ -15,8 +15,11 @@ public class AccountLog {
     private final long accountId;
     private final PostingOperation operation;
     private final long amount;
+    private final long availableAmount;
+    private final long ownAmount;
+    private final boolean credit;
 
-    public AccountLog(long id, long requestId, long postingId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount) {
+    public AccountLog(long id, long requestId, long postingId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long availableAmount, boolean credit) {
         this.id = id;
         this.requestId = requestId;
         this.postingId = postingId;
@@ -25,6 +28,9 @@ public class AccountLog {
         this.accountId = accountId;
         this.operation = operation;
         this.amount = amount;
+        this.ownAmount = ownAmount;
+        this.availableAmount = availableAmount;
+        this.credit = credit;
     }
 
     public long getId() {
@@ -59,16 +65,27 @@ public class AccountLog {
         return amount;
     }
 
+    public long getAvailableAmount() {
+        return availableAmount;
+    }
+
+    public long getOwnAmount() {
+        return ownAmount;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof AccountLog)) return false;
         AccountLog that = (AccountLog) o;
         return id == that.id &&
-                postingId == that.postingId &&
                 requestId == that.requestId &&
+                postingId == that.postingId &&
                 accountId == that.accountId &&
                 amount == that.amount &&
+                availableAmount == that.availableAmount &&
+                ownAmount == that.ownAmount &&
+                credit == that.credit &&
                 Objects.equals(planId, that.planId) &&
                 Objects.equals(creationTime, that.creationTime) &&
                 operation == that.operation;
@@ -76,7 +93,12 @@ public class AccountLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, postingId, planId, requestId, creationTime, accountId, operation, amount);
+        return Objects.hash(id, requestId, postingId, planId, creationTime, accountId, operation, amount, availableAmount, ownAmount, credit);
+    }
+
+    public boolean isCredit() {
+
+        return credit;
     }
 
     @Override
@@ -90,6 +112,9 @@ public class AccountLog {
                 ", accountId=" + accountId +
                 ", operation=" + operation +
                 ", amount=" + amount +
+                ", availableAmount=" + availableAmount +
+                ", ownAmount=" + ownAmount +
+                ", credit=" + credit +
                 '}';
     }
 }
