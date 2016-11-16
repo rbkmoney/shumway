@@ -267,6 +267,24 @@
             <version>2.0.0.0</version>
             <scope>test</scope>
         </dependency>
+        <!--
+        download artifacts from https://dl.bintray.com/palantir/releases
+        mvn deploy:deploy-file -DpomFile=docker-compose-rule-0.27.0.pom   -Dfile=docker-compose-rule-0.27.0.jar  \
+         -DrepositoryId=central   -Durl=http://java-nexus.msk1.rbkmoney.net:8081/nexus/content/repositories/thirdparty/ \
+          -Dsources=docker-compose-rule-0.27.0-sources.jar -Djavadoc=docker-compose-rule-0.27.0-javadoc.jar
+        -->
+        <dependency>
+            <groupId>com.palantir.docker.compose</groupId>
+            <artifactId>docker-compose-rule</artifactId>
+            <version>0.27.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-library</artifactId>
+                </exclusion>
+            </exclusions>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -289,6 +307,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
