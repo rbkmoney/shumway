@@ -4,7 +4,10 @@ import com.palantir.docker.compose.DockerComposeRule;
 import com.palantir.docker.compose.connection.waiting.HealthChecks;
 import com.palantir.docker.compose.logging.FileLogCollector;
 import com.rbkmoney.damsel.accounter.*;
+import com.rbkmoney.shumway.handler.ProtocolConverter;
+import com.rbkmoney.shumway.service.AccountService;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.thrift.TException;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -31,9 +34,17 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @TestPropertySource(locations="classpath:test.properties")
+@Slf4j
 public class HighAvailabilityTest {
+    private static final long TIMEOUT = 5000;
+    private static final int numberOfAccs = 10000;
+    private static final int amount = 1000;
+
     @Autowired
     AccounterSrv.Iface client;
+
+    @Autowired
+    AccountService accountService;
 
     @LocalServerPort
     int port;
@@ -58,52 +69,61 @@ public class HighAvailabilityTest {
         testHighAvailability();
     }
 
+    // move money 1 -> 2 -> 3 .. -> N -> 1
+    // after all transactions amount on all accounts should be zero
+    // also check intermediate amounts
     private void testHighAvailability() throws TException {
         assertNotNull(client);
 
-        final int numberOfAccs = 100;
-        final int ammount = 1000;
-
         long startTime = System.currentTimeMillis();
-        List<Long> accs = createAccs(numberOfAccs, client);
-        System.out.printf("CreateAccs(%d) execution time: %dms\n", numberOfAccs, (System.currentTimeMillis() - startTime));
+        List<Long> accs = createAccs(numberOfAccs, accountService);
+        log.info("CreateAccs({}) execution time: {}ms", numberOfAccs, (System.currentTimeMillis() - startTime));
 
-
-        for(int i=0; i < accs.size() - 1; i++){
+        log.info("end");
+        for(int i=0; i < accs.size(); i++){
             long from = accs.get(i);
-            long to = accs.get(i+1);
-            transfer(from, to, ammount, client);
+            long to = accs.get((i+1) % accs.size());
+
+            makeAndTestTransfer(from, to, amount, client);
         }
-
-        final long firstAccId = accs.get(0);
-        final long lastAccId = accs.get(accs.size() - 1);
-
-        transfer(lastAccId, firstAccId, ammount, client);
 
         for(long accId: accs){
-            Account acc = client.getAccountByID(accId);
-            assertEquals(acc.getAvailableAmount(), 0);
+            Account acc = retry(() -> client.getAccountByID(accId));
+            assertEquals("Acc ID: " + acc.getId(), 0, acc.getAvailableAmount());
         }
-
-
-
-        System.out.println("end.");
     }
 
+    private void makeAndTestTransfer(long from, long to, long amount, AccounterSrv.Iface client){
+        final Account accFromBefore = retry(() -> client.getAccountByID(from));
+        final Account accToBefore = retry(() -> client.getAccountByID(to));
+        final String ppid = System.currentTimeMillis() + "";
 
-    public void transfer(long accIdFrom, long accIdTo, long amount, AccounterSrv.Iface client) throws TException {
-        // read accounts, imitate read and checks before postings
-        Account accFrom = client.getAccountByID(accIdFrom);
-        Account accTo = client.getAccountByID(accIdTo);
+        transfer(ppid, accFromBefore, accToBefore, amount, client);
 
-        String ppid = System.currentTimeMillis() + "";
+        final Account accFromAfter = retry(() -> client.getAccountByID(from));
+        final Account accToAfter = retry(() -> client.getAccountByID(to));
 
-        //TODO create retry around it
-        PostingPlan postingPlan = createPostingPlan(ppid, accIdFrom, accIdTo, amount);
+        assertEquals("Account ID: " + from, amount, accFromBefore.getAvailableAmount() - accFromAfter.getAvailableAmount());
+        assertEquals("Account ID: " + from,-amount, accToBefore.getAvailableAmount() - accToAfter.getAvailableAmount());
+    }
 
-        client.hold(postingPlan);
+    public void transfer(String ppid, Account accFrom , Account accTo, long amount, AccounterSrv.Iface client){
+        final PostingPlan postingPlan = createPostingPlan(ppid, accFrom.getId(), accTo.getId(), amount);
+
+        retry(() -> client.hold(postingPlan));
         //TODO: maybe random time sleep if transfers are made in different threads
-        client.commitPlan(postingPlan);
+        log.info("Try commit plan. " + postingPlan.getId());
+        retry(() -> client.commitPlan(postingPlan));
+        log.info("Plan committed. " + postingPlan.getId());
+    }
+
+    public static List<Long> createAccs(int N, AccountService service) throws TException {
+        AccountPrototype prototype = new AccountPrototype("RUB");
+        prototype.setDescription("Test");
+
+        com.rbkmoney.shumway.domain.Account domainPrototype = ProtocolConverter.convertToDomainAccount(prototype);
+
+        return service.createAccounts(domainPrototype, N);
     }
 
     public static List<Long> createAccs(int N, AccounterSrv.Iface client) throws TException {
@@ -128,5 +148,40 @@ public class HighAvailabilityTest {
 
     private int getPort(){
         return port;
+    }
+
+    @FunctionalInterface
+    private interface Action<T> {
+        T execute() throws Exception;
+    }
+
+    private <T> T retry(Action<T> a){
+        return new SimpleRetrier<>(a, TIMEOUT).retry();
+    }
+
+    private static class SimpleRetrier<T>{
+        private Action<T> action;
+        private long timeout;
+
+        SimpleRetrier(Action<T> action, long timeout) {
+            this.action = action;
+            this.timeout = timeout;
+        }
+
+        T retry(){
+            while (true){
+                try {
+                    return action.execute();
+                }catch (Exception e){
+                    log.error("Exception during doing some retryable actions. Wait {} ms and execute.", timeout);
+                    log.error("Description: ",e);
+                    try {
+                        Thread.sleep(timeout);
+                    } catch (InterruptedException ignored) {
+                        log.warn("Interrupted during waiting for execute.");
+                    }
+                }
+            }
+        }
     }
 }

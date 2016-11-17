@@ -5,4 +5,4 @@ postgres:
     POSTGRES_PASSWORD: postgres
     POSTGRES_DB: shumway
   ports:
-    - '12345:5432'
+    - '5000:5432'
