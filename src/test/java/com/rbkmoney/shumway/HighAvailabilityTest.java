@@ -74,12 +74,14 @@ public class HighAvailabilityTest {
     // after all transactions amount on all accounts should be zero
     // also check intermediate amounts
     private void testHighAvailability() throws TException, InterruptedException {
+        long totalStartTime = System.currentTimeMillis();
         assertNotNull(client);
         final ExecutorService executorService = newFixedThreadPoolWithQueueSize(NUMBER_OF_THREADS, SIZE_OF_QUEUE);
 
         long startTime = System.currentTimeMillis();
         List<Long> accs = createAccs(NUMBER_OF_ACCS, accountService);
-        log.info("CreateAccs({}) execution time: {}ms", NUMBER_OF_ACCS, (System.currentTimeMillis() - startTime));
+        log.warn("CreateAccs({}) execution time: {}ms", NUMBER_OF_ACCS, (System.currentTimeMillis() - startTime));
+        startTime = System.currentTimeMillis();
 
         for(int i=0; i < accs.size(); i++){
             final long from = accs.get(i);
@@ -98,10 +100,14 @@ public class HighAvailabilityTest {
             log.error("Waiting was terminated by timeout");
         }
 
+        log.warn("Transactions execution time from start: {}ms", (System.currentTimeMillis() - startTime));
+        startTime = System.currentTimeMillis();
         for(long accId: accs){
             Account acc = retry(() -> client.getAccountByID(accId));
             assertEquals("Acc ID: " + acc.getId(), 0, acc.getAvailableAmount());
         }
+        log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
+        log.warn("Total time: {}ms", (System.currentTimeMillis() - totalStartTime));
     }
 
     private void makeAndTestTransfer(PostingPlan postingPlan, AccounterSrv.Iface client){

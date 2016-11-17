@@ -65,7 +65,7 @@ bootstrap:
 postgresql:
   listen: 127.0.0.1:5433
   connect_address: 127.0.0.1:5433
-  data_dir: data/postgresql1
+  data_dir: /tmp/data/postgresql1
 #  bin_dir:
   pgpass: /tmp/pgpass1
   authentication:

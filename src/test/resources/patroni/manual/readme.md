@@ -18,7 +18,7 @@ sudo ln -s $(pwd)/patroni.py /usr/bin/patroni
 3) go to this directory
 4) run consul
 ```bash
-consul agent -dev -client 0.0.0.0 -data-dir data/consul
+consul agent -dev -client 0.0.0.0 -data-dir /tmp/data/consul
 ```
 5) run haproxy
 ```bash
