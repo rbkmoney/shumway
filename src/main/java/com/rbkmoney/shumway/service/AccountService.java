@@ -23,6 +23,10 @@ public class AccountService {
         return accountDao.add(prototype);
     }
 
+    public List<Long> createAccounts(Account prototype, int numberOfAccs) {
+        return accountDao.add(prototype, numberOfAccs);
+    }
+
     public Account getAccount(long id) {
         return accountDao.get(id);
     }

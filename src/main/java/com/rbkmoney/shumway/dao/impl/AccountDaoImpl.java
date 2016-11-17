@@ -2,7 +2,10 @@ package com.rbkmoney.shumway.dao.impl;
 
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.dao.DaoException;
-import com.rbkmoney.shumway.domain.*;
+import com.rbkmoney.shumway.domain.Account;
+import com.rbkmoney.shumway.domain.AccountLog;
+import com.rbkmoney.shumway.domain.AmountState;
+import com.rbkmoney.shumway.domain.Pair;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
@@ -44,6 +47,46 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
                 throw new DaoException("Account creation returned unexpected update count: "+updateCount);
             }
             return keyHolder.getKey().longValue();
+        } catch (NestedRuntimeException e) {
+            throw new DaoException(e);
+        }
+    }
+
+    public List<Long> add(Account prototype, int numberOfAccs) throws DaoException {
+        final int BATCH_SISE = 10000;
+        final List<Long> ids = new ArrayList<>();
+        if(numberOfAccs >= BATCH_SISE){
+            for(int i=0; i < numberOfAccs/BATCH_SISE; i++){
+                ids.addAll(addBatch(prototype, BATCH_SISE));
+            }
+        }
+        if(numberOfAccs % BATCH_SISE != 0){
+            ids.addAll(addBatch(prototype, numberOfAccs % BATCH_SISE ));
+        }
+
+        return ids;
+    }
+
+    private List<Long> addBatch(Account prototype, int numberOfAccs) throws DaoException {
+        List<String> insertValues = new ArrayList<>();
+        for(int i=0; i < numberOfAccs; i++){
+            insertValues.add("(:curr_sym_code, :creation_time, :description)");
+        }
+        final String sql =
+                "INSERT INTO shm.account(curr_sym_code, creation_time, description) " +
+                        "VALUES " + String.join(", ", insertValues) +
+                " RETURNING id;";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("curr_sym_code", prototype.getCurrSymCode());
+        params.addValue("creation_time", Timestamp.from(prototype.getCreationTime()));
+        params.addValue("description", prototype.getDescription());
+        try {
+            GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+            int updateCount = getNamedParameterJdbcTemplate().update(sql, params, keyHolder);
+            if (updateCount != numberOfAccs) {
+                throw new DaoException("Accounts creation returned unexpected update count: " + updateCount);
+            }
+            return keyHolder.getKeyList().stream().map(m -> (Long)m.get("id")).collect(Collectors.toList());
         } catch (NestedRuntimeException e) {
             throw new DaoException(e);
         }
