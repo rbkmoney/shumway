@@ -1,15 +1,11 @@
 package com.rbkmoney.shumway;
 
-import com.palantir.docker.compose.DockerComposeRule;
-import com.palantir.docker.compose.connection.waiting.HealthChecks;
-import com.palantir.docker.compose.logging.FileLogCollector;
 import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.shumway.handler.ProtocolConverter;
 import com.rbkmoney.shumway.service.AccountService;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.thrift.TException;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -19,12 +15,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -37,8 +36,10 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @Slf4j
 public class HighAvailabilityTest {
     private static final long TIMEOUT = 5000;
-    private static final int numberOfAccs = 10000;
-    private static final int amount = 1000;
+    private static final int NUMBER_OF_THREADS = 8;
+    private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
+    private static final int NUMBER_OF_ACCS = 40000;
+    private static final int AMOUNT = 1000;
 
     @Autowired
     AccounterSrv.Iface client;
@@ -49,69 +50,73 @@ public class HighAvailabilityTest {
     @LocalServerPort
     int port;
 
-    @ClassRule
-    public static DockerComposeRule docker = DockerComposeRule.builder()
-            .file("src/test/resources/docker-compose.yml")
-            .logCollector(new FileLogCollector(new File("target/pglog")))
-            .waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())
-            .build();
+//    @ClassRule
+//    public static DockerComposeRule docker = DockerComposeRule.builder()
+//            .file("src/test/resources/docker-compose.yml")
+//            .logCollector(new FileLogCollector(new File("target/pglog")))
+//            .waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())
+//            .build();
 
     @Test
     @Ignore
-    public void testRemote() throws URISyntaxException, TException {
+    public void testRemote() throws URISyntaxException, TException, InterruptedException {
         THSpawnClientBuilder clientBuilder = new THSpawnClientBuilder().withAddress(new URI("http://localhost:" + getPort() + "/accounter"));
         client = clientBuilder.build(AccounterSrv.Iface.class);
         testHighAvailability();
     }
 
     @Test
-    public void testLocal() throws URISyntaxException, TException {
+    public void testLocal() throws URISyntaxException, TException, InterruptedException {
         testHighAvailability();
     }
 
     // move money 1 -> 2 -> 3 .. -> N -> 1
     // after all transactions amount on all accounts should be zero
     // also check intermediate amounts
-    private void testHighAvailability() throws TException {
+    private void testHighAvailability() throws TException, InterruptedException {
+        long totalStartTime = System.currentTimeMillis();
         assertNotNull(client);
+        final ExecutorService executorService = newFixedThreadPoolWithQueueSize(NUMBER_OF_THREADS, SIZE_OF_QUEUE);
 
         long startTime = System.currentTimeMillis();
-        List<Long> accs = createAccs(numberOfAccs, accountService);
-        log.info("CreateAccs({}) execution time: {}ms", numberOfAccs, (System.currentTimeMillis() - startTime));
+        List<Long> accs = createAccs(NUMBER_OF_ACCS, accountService);
+        log.warn("CreateAccs({}) execution time: {}ms", NUMBER_OF_ACCS, (System.currentTimeMillis() - startTime));
+        startTime = System.currentTimeMillis();
 
-        log.info("end");
         for(int i=0; i < accs.size(); i++){
-            long from = accs.get(i);
-            long to = accs.get((i+1) % accs.size());
+            final long from = accs.get(i);
+            final long to = accs.get((i+1) % accs.size());
+            final String ppid = System.currentTimeMillis() + "_" + i;
 
-            makeAndTestTransfer(from, to, amount, client);
+            final PostingPlan postingPlan = createNewPostingPlan(ppid, from, to, AMOUNT);
+
+            executorService.submit(() -> makeAndTestTransfer(postingPlan, client));
+        }
+        log.warn("All transactions submitted.");
+
+        executorService.shutdown();
+        boolean success = executorService.awaitTermination(SIZE_OF_QUEUE, TimeUnit.SECONDS);
+        if(!success){
+            log.error("Waiting was terminated by timeout");
         }
 
+        log.warn("Transactions execution time from start: {}ms", (System.currentTimeMillis() - startTime));
+        startTime = System.currentTimeMillis();
         for(long accId: accs){
             Account acc = retry(() -> client.getAccountByID(accId));
             assertEquals("Acc ID: " + acc.getId(), 0, acc.getAvailableAmount());
         }
+        log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
+        log.warn("Total time: {}ms", (System.currentTimeMillis() - totalStartTime));
     }
 
-    private void makeAndTestTransfer(long from, long to, long amount, AccounterSrv.Iface client){
-        final Account accFromBefore = retry(() -> client.getAccountByID(from));
-        final Account accToBefore = retry(() -> client.getAccountByID(to));
-        final String ppid = System.currentTimeMillis() + "";
-
-        transfer(ppid, accFromBefore, accToBefore, amount, client);
-
-        final Account accFromAfter = retry(() -> client.getAccountByID(from));
-        final Account accToAfter = retry(() -> client.getAccountByID(to));
-
-        assertEquals("Account ID: " + from, amount, accFromBefore.getAvailableAmount() - accFromAfter.getAvailableAmount());
-        assertEquals("Account ID: " + from,-amount, accToBefore.getAvailableAmount() - accToAfter.getAvailableAmount());
-    }
-
-    public void transfer(String ppid, Account accFrom , Account accTo, long amount, AccounterSrv.Iface client){
-        final PostingPlan postingPlan = createPostingPlan(ppid, accFrom.getId(), accTo.getId(), amount);
-
+    private void makeAndTestTransfer(PostingPlan postingPlan, AccounterSrv.Iface client){
+        log.info("Try hold plan. " + postingPlan.getId());
         retry(() -> client.hold(postingPlan));
+        log.info("Plan was held. " + postingPlan.getId());
+
         //TODO: maybe random time sleep if transfers are made in different threads
+
         log.info("Try commit plan. " + postingPlan.getId());
         retry(() -> client.commitPlan(postingPlan));
         log.info("Plan committed. " + postingPlan.getId());
@@ -141,9 +146,9 @@ public class HighAvailabilityTest {
         return client.createAccount(prototype);
     }
 
-    public static PostingPlan createPostingPlan(String ppId,long accFrom, long accTo, long amount){
+    public static PostingPlan createNewPostingPlan(String ppid, long accFrom, long accTo, long amount){
         Posting posting = new Posting(1, accFrom, accTo, amount, "RUB", "Desc");
-        return new PostingPlan(ppId, Arrays.asList(posting));
+        return new PostingPlan(ppid, Arrays.asList(posting));
     }
 
     private int getPort(){
@@ -183,5 +188,11 @@ public class HighAvailabilityTest {
                 }
             }
         }
+    }
+
+    private static ExecutorService newFixedThreadPoolWithQueueSize(int nThreads, int queueSize) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(queueSize, true), new ThreadPoolExecutor.CallerRunsPolicy());
     }
 }
