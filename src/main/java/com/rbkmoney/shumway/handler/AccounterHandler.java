@@ -70,9 +70,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
         }
 
         try {
-            Map<Long, StatefulAccount> affectedDomainStatefulAccounts = accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values()
-                    .stream()
-                    .collect(Collectors.toList()), postingPlan.getId());
+            Map<Long, StatefulAccount> affectedDomainStatefulAccounts = (isFinalOperation(operation)
+                    ? accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId())
+            : accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId(), postingPlan.getBatchList().get(0).getId()));
 
             Map<Long, Account> affectedProtocolAccounts = affectedDomainStatefulAccounts.values()
                     .stream()

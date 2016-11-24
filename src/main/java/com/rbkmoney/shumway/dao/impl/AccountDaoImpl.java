@@ -181,6 +181,22 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         }
     }
 
+    @Override
+    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId, long batchId) throws DaoException {
+        if (accountIds.isEmpty()) {
+            return Collections.emptyMap();
+        } else {
+            MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
+            params.addValue("batch_id", batchId);
+            final String sql = "select t.account_id, sum(t.own_sum) as total_own_sum, sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum from (select account_id, plan_id, sum(own_amount) as own_sum, sum(own_amount_delta) as own_detla_sum from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+") and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) group by account_id, plan_id) as t GROUP BY t.account_id";
+            try {
+                return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
     private Map<Long, AccountState> fillAbsentValues(List<Long> accountIds, Map<Long, AccountState> stateMap) {
         accountIds.stream().forEach(id -> stateMap.putIfAbsent(id, new AccountState()));
         return stateMap;

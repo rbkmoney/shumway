@@ -34,7 +34,7 @@ public class AccounterValidator {
     public static final String POSTING_PLAN_EMPTY = "Plan ($s) has no batches inside";
     public static final String POSTING_BATCH_EMPTY = "Posting batch (%d) has no postings inside";
     public static final String POSTING_BATCH_DUPLICATE = "Batch (%d) has duplicate in received list";
-    public static final String POSTING_BATCH_CONT_VIOLATION = "Too many batches is posting plan (%s)";
+    public static final String POSTING_BATCH_CONT_VIOLATION = "Too many batches in posting plan (%s)";
 
     private static final BiFunction<Posting, PostingLog, Boolean> postingComparator = (posting, postingLog) -> {
         if (posting.getAmount() != postingLog.getAmount()) {
@@ -80,14 +80,6 @@ public class AccounterValidator {
             throw new InvalidPostingParams(errors);
         }
 
-    }
-
-    public static Map<Posting, String> createErrMap(List<Posting> postings, String message) {
-        Map<Posting, String> wrongPostings = new HashMap<>();
-        for (Posting posting : postings) {
-            wrongPostings.put(posting, message);
-        }
-        return wrongPostings;
     }
 
     public static void validateEqualToSavedPostings(Map<Long, List<Posting>> receivedProtocolPostingLogs, Map<Long, List<PostingLog>> savedDomainPostingLogs, boolean skipMissing) throws TException {

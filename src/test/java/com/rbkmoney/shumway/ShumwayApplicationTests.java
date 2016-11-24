@@ -2,6 +2,7 @@ package com.rbkmoney.shumway;
 
 import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.damsel.base.InvalidRequest;
+import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
@@ -496,6 +497,28 @@ public class ShumwayApplicationTests {
         assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
         assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
         assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
+    }
+
+    @Test
+    public void testRepeatableHold() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long fromAccountId1 = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId1 = client.createAccount(new AccountPrototype("RU"));
+
+        Posting posting = new Posting(fromAccountId1, toAccountId1, 100, "RU", "Test");
+
+        PostingBatch postingBatch1 = new PostingBatch(1, asList(posting));
+
+        PostingPlanLog planLog1 = client.hold(new PostingPlanChange(planId, postingBatch1));
+
+        PostingBatch postingBatch2 = new PostingBatch(2, asList(posting));
+
+        PostingPlanLog planLog2 = client.hold(new PostingPlanChange(planId, postingBatch2));
+
+        assertEquals(planLog1, client.hold(new PostingPlanChange(planId, postingBatch1)));
+
+
     }
 
 

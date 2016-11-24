@@ -6,6 +6,7 @@ import com.rbkmoney.shumway.domain.*;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -57,20 +58,28 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(List<Account> srcAccounts, String planId) {
-        Map<Long, AccountState> accountStates = accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId);
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId) {
+        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId));
+    }
+
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId, long batchId) {
+        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId, batchId));
+    }
+
+    private Map<Long, StatefulAccount> getStatefulAccounts(Collection<Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
+        Map<Long, AccountState> accountStates = valsSupplier.get();
         return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account ->  new StatefulAccount(account, accountStates.get(account.getId()))));
     }
 
     /**
      * @return  List with stateful accounts. If no state was found for account, if'll be set to null
      * */
-    public Map<Long, StatefulAccount> getStatefulAccounts(List<Account> srcAccounts) {
+    public Map<Long, StatefulAccount> getStatefulAccounts(Collection<Account> srcAccounts) {
         Map<Long, AccountState> accountStates = accountDao.getAccountStates(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()));
         return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account ->  new StatefulAccount(account, accountStates.get(account.getId()))));
     }
 
-    public void addAccountLogs(List<PostingLog> postingLogs) {
+    public void addAccountLogs(Collection<PostingLog> postingLogs) {
        List<AccountLog> accountLogs = new ArrayList<>(postingLogs.size() * 2);
        for (PostingLog postingLog: postingLogs) {
            accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), getAmount(postingLog, true), getOwnAmount(postingLog, true), getOwnAmountDelta(postingLog, true), true, false));
