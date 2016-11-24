@@ -10,13 +10,13 @@ public class PostingPlanLog {
     private final String planId;
     private final Instant lastAccessTime;
     private final PostingOperation lastOperation;
-    private final long lastRequestId;
+    private final long lastBatchId;
 
-    public PostingPlanLog(String planId, Instant lastAccessTime, PostingOperation lastOperation, long lastRequestId) {
+    public PostingPlanLog(String planId, Instant lastAccessTime, PostingOperation lastOperation, long lastBatchId) {
         this.planId = planId;
         this.lastAccessTime = lastAccessTime;
         this.lastOperation = lastOperation;
-        this.lastRequestId = lastRequestId;
+        this.lastBatchId = lastBatchId;
     }
 
     public String getPlanId() {
@@ -31,8 +31,8 @@ public class PostingPlanLog {
         return lastOperation;
     }
 
-    public long getLastRequestId() {
-        return lastRequestId;
+    public long getLastBatchId() {
+        return lastBatchId;
     }
 
     @Override
@@ -40,7 +40,7 @@ public class PostingPlanLog {
         if (this == o) return true;
         if (!(o instanceof PostingPlanLog)) return false;
         PostingPlanLog that = (PostingPlanLog) o;
-        return lastRequestId == that.lastRequestId &&
+        return lastBatchId == that.lastBatchId &&
                 Objects.equals(planId, that.planId) &&
                 Objects.equals(lastAccessTime, that.lastAccessTime) &&
                 lastOperation == that.lastOperation;
@@ -48,7 +48,7 @@ public class PostingPlanLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(planId, lastAccessTime, lastOperation, lastRequestId);
+        return Objects.hash(planId, lastAccessTime, lastOperation, lastBatchId);
     }
 
     @Override
@@ -57,7 +57,7 @@ public class PostingPlanLog {
                 "planId='" + planId + '\'' +
                 ", lastAccessTime=" + lastAccessTime +
                 ", lastOperation=" + lastOperation +
-                ", lastRequestId=" + lastRequestId +
+                ", lastBatchId=" + lastBatchId +
                 '}';
     }
 }

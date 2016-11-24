@@ -4,7 +4,9 @@ import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.shumway.domain.PostingOperation;
 import com.rbkmoney.shumway.domain.PostingPlanLog;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by vpankrashkin on 16.09.16.
@@ -34,7 +36,8 @@ public interface PostingPlanDao {
     /**
      * @return Posting log records containing referred posting operation
      * */
-    List<PostingLog> getPostingLogs(String planId, PostingOperation operation) throws DaoException;
+    Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) throws DaoException;
+    Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException;
 
 
     /**

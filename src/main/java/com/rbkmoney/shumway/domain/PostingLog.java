@@ -9,8 +9,7 @@ import java.util.Objects;
 public class PostingLog {
     private final long id;
     private final String planId;
-    private final long postingId;
-    private final long requestId;
+    private final long batchId;
     private final long fromAccountId;
     private final long toAccountId;
     private final long amount;
@@ -19,11 +18,10 @@ public class PostingLog {
     private final String currSymCode;
     private final String description;
 
-    public PostingLog(long id, String planId, long postingId, long requestId, long fromAccountId, long toAccountId, long amount, Instant creationTime, PostingOperation operation, String currSymCode, String description) {
+    public PostingLog(long id, String planId, long batchId, long fromAccountId, long toAccountId, long amount, Instant creationTime, PostingOperation operation, String currSymCode, String description) {
         this.id = id;
         this.planId = planId;
-        this.postingId = postingId;
-        this.requestId = requestId;
+        this.batchId = batchId;
         this.fromAccountId = fromAccountId;
         this.toAccountId = toAccountId;
         this.amount = amount;
@@ -41,13 +39,10 @@ public class PostingLog {
         return planId;
     }
 
-    public long getPostingId() {
-        return postingId;
+    public long getBatchId() {
+        return batchId;
     }
 
-    public long getRequestId() {
-        return requestId;
-    }
 
     public long getFromAccountId() {
         return fromAccountId;
@@ -83,12 +78,11 @@ public class PostingLog {
         if (!(o instanceof PostingLog)) return false;
         PostingLog that = (PostingLog) o;
         return id == that.id &&
-                requestId == that.requestId &&
+                batchId == that.batchId &&
                 fromAccountId == that.fromAccountId &&
                 toAccountId == that.toAccountId &&
                 amount == that.amount &&
                 Objects.equals(planId, that.planId) &&
-                Objects.equals(postingId, that.postingId) &&
                 Objects.equals(creationTime, that.creationTime) &&
                 operation == that.operation &&
                 Objects.equals(currSymCode, that.currSymCode) &&
@@ -97,7 +91,7 @@ public class PostingLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, planId, postingId, requestId, fromAccountId, toAccountId, amount, creationTime, operation, currSymCode, description);
+        return Objects.hash(id, planId, batchId, fromAccountId, toAccountId, amount, creationTime, operation, currSymCode, description);
     }
 
     @Override
@@ -105,8 +99,7 @@ public class PostingLog {
         return "PostingLog{" +
                 "id=" + id +
                 ", planId='" + planId + '\'' +
-                ", postingId=" + postingId +
-                ", requestId=" + requestId +
+                ", batchId=" + batchId +
                 ", fromAccountId=" + fromAccountId +
                 ", toAccountId=" + toAccountId +
                 ", amount=" + amount +

@@ -8,41 +8,37 @@ import java.util.Objects;
  */
 public class AccountLog {
     private final long id;
-    private final long requestId;
-    private final long postingId;
+    private final long batchId;
     private final String planId;
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
     private final long amount;
-    private final long availableAmount;
     private final long ownAmount;
+    private final long ownAmountDelta;
     private final boolean credit;
+    private final boolean merged;
 
-    public AccountLog(long id, long requestId, long postingId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long availableAmount, boolean credit) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long ownAmountDelta, boolean credit, boolean merged) {
         this.id = id;
-        this.requestId = requestId;
-        this.postingId = postingId;
+        this.batchId = batchId;
         this.planId = planId;
         this.creationTime = creationTime;
         this.accountId = accountId;
         this.operation = operation;
         this.amount = amount;
         this.ownAmount = ownAmount;
-        this.availableAmount = availableAmount;
+        this.ownAmountDelta = ownAmountDelta;
         this.credit = credit;
+        this.merged = merged;
     }
 
     public long getId() {
         return id;
     }
 
-    public long getRequestId() {
-        return requestId;
-    }
-
-    public long getPostingId() {
-        return postingId;
+    public long getBatchId() {
+        return batchId;
     }
 
     public String getPlanId() {
@@ -65,12 +61,20 @@ public class AccountLog {
         return amount;
     }
 
-    public long getAvailableAmount() {
-        return availableAmount;
+    public long getOwnAmountDelta() {
+        return ownAmountDelta;
     }
 
     public long getOwnAmount() {
         return ownAmount;
+    }
+
+    public boolean isCredit() {
+        return credit;
+    }
+
+    public boolean isMerged() {
+        return merged;
     }
 
     @Override
@@ -79,13 +83,13 @@ public class AccountLog {
         if (!(o instanceof AccountLog)) return false;
         AccountLog that = (AccountLog) o;
         return id == that.id &&
-                requestId == that.requestId &&
-                postingId == that.postingId &&
+                batchId == that.batchId &&
                 accountId == that.accountId &&
                 amount == that.amount &&
-                availableAmount == that.availableAmount &&
                 ownAmount == that.ownAmount &&
+                ownAmountDelta == that.ownAmountDelta &&
                 credit == that.credit &&
+                merged == that.merged &&
                 Objects.equals(planId, that.planId) &&
                 Objects.equals(creationTime, that.creationTime) &&
                 operation == that.operation;
@@ -93,28 +97,23 @@ public class AccountLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, requestId, postingId, planId, creationTime, accountId, operation, amount, availableAmount, ownAmount, credit);
-    }
-
-    public boolean isCredit() {
-
-        return credit;
+        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, amount, ownAmount, ownAmountDelta, credit, merged);
     }
 
     @Override
     public String toString() {
         return "AccountLog{" +
                 "id=" + id +
-                ", requestId=" + requestId +
-                ", postingId=" + postingId +
+                ", batchId=" + batchId +
                 ", planId='" + planId + '\'' +
                 ", creationTime=" + creationTime +
                 ", accountId=" + accountId +
                 ", operation=" + operation +
                 ", amount=" + amount +
-                ", availableAmount=" + availableAmount +
                 ", ownAmount=" + ownAmount +
+                ", ownAmountDelta=" + ownAmountDelta +
                 ", credit=" + credit +
+                ", merged=" + merged +
                 '}';
     }
 }

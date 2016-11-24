@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -31,9 +31,8 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <db.url.name>accounter</db.url.name>
-                <db.url.host.name>192.168.99.100</db.url.host.name>
-                <db.url.host.port>32768</db.url.host.port>
+                <db.url.host.name>localhost</db.url.host.name>
+                <db.url.host.port>32769</db.url.host.port>
                 <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
                 <shm.db.user>postgres</shm.db.user>
                 <shm.db.password>postgres</shm.db.password>
@@ -54,73 +53,6 @@
                 <flyway.user>${shm.db.user}</flyway.user>
                 <flyway.password>${shm.db.password}</flyway.password>
             </properties>
-        </profile>
-        <profile>
-            <id>jooq_codegen</id>
-            <build>
-                <plugins>
-                    <!--Flyway-->
-                    <plugin>
-                        <groupId>org.flywaydb</groupId>
-                        <artifactId>flyway-maven-plugin</artifactId>
-                        <version>${flyway.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>migrate</goal>
-                                </goals>
-                                <phase>process-test-resources</phase>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <url>${flyway.db.url}</url>
-                            <user>${flyway.user}</user>
-                            <password>${flyway.password}</password>
-                        </configuration>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.postgresql</groupId>
-                                <artifactId>postgresql</artifactId>
-                                <version>${postgresql.jdbc.version}</version>
-                            </dependency>
-                        </dependencies>
-                    </plugin>
-                    <!-- JOOQ -->
-                    <plugin>
-                        <groupId>org.jooq</groupId>
-                        <artifactId>jooq-codegen-maven</artifactId>
-                        <version>${jooq.version}</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.postgresql</groupId>
-                                <artifactId>postgresql</artifactId>
-                                <version>${postgresql.jdbc.version}</version>
-                            </dependency>
-                        </dependencies>
-                        <configuration>
-                            <jdbc>
-                                <driver>org.postgresql.Driver</driver>
-                                <url>${shm.db.url}</url>
-                                <user>${shm.db.user}</user>
-                                <password>${shm.db.password}</password>
-                            </jdbc>
-                            <generator>
-                                <database>
-                                    <name>org.jooq.util.postgres.PostgresDatabase</name>
-                                    <includes>.*</includes>
-                                    <excludes/>
-                                    <inputSchema>${shm.db.schema}</inputSchema>
-                                </database>
-                                <target>
-                                    <packageName>com.rbkmoney.shumway.domain.generated</packageName>
-                                    <directory>src/main/java/</directory>
-                                </target>
-                            </generator>
-                        </configuration>
-                    </plugin>
-                </plugins>
-
-            </build>
         </profile>
 
         <profile>
@@ -253,7 +185,7 @@
         <dependency>
             <groupId>com.rbkmoney</groupId>
             <artifactId>damsel</artifactId>
-            <version>1.92-1a7ad73</version>
+            <version>1.106-65aa80f</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney.logback</groupId>

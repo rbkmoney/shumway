@@ -1,14 +1,15 @@
 package com.rbkmoney.shumway;
 
 import com.rbkmoney.damsel.accounter.*;
+import com.rbkmoney.shumway.dao.SupportAccountDao;
 import com.rbkmoney.shumway.handler.ProtocolConverter;
-import com.rbkmoney.shumway.service.AccountService;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.thrift.TException;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.embedded.LocalServerPort;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,10 +21,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -33,8 +31,8 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @TestPropertySource(locations="classpath:test.properties")
-@Slf4j
 public class HighAvailabilityTest {
+    private  final Logger log = LoggerFactory.getLogger(this.getClass());
     private static final long TIMEOUT = 5000;
     private static final int NUMBER_OF_THREADS = 8;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
@@ -45,7 +43,7 @@ public class HighAvailabilityTest {
     AccounterSrv.Iface client;
 
     @Autowired
-    AccountService accountService;
+    SupportAccountDao supportAccountDao;
 
     @LocalServerPort
     int port;
@@ -79,7 +77,7 @@ public class HighAvailabilityTest {
         final ExecutorService executorService = newFixedThreadPoolWithQueueSize(NUMBER_OF_THREADS, SIZE_OF_QUEUE);
 
         long startTime = System.currentTimeMillis();
-        List<Long> accs = createAccs(NUMBER_OF_ACCS, accountService);
+        List<Long> accs = createAccs(NUMBER_OF_ACCS, supportAccountDao);
         log.warn("CreateAccs({}) execution time: {}ms", NUMBER_OF_ACCS, (System.currentTimeMillis() - startTime));
         startTime = System.currentTimeMillis();
 
@@ -104,7 +102,9 @@ public class HighAvailabilityTest {
         startTime = System.currentTimeMillis();
         for(long accId: accs){
             Account acc = retry(() -> client.getAccountByID(accId));
-            assertEquals("Acc ID: " + acc.getId(), 0, acc.getAvailableAmount());
+            assertEquals("Acc ID: " + acc.getId(), 0, acc.getOwnAmount());
+            assertEquals("Acc ID: " + acc.getId(), 0, acc.getMaxAvailableAmount());
+            assertEquals("Acc ID: " + acc.getId(), 0, acc.getMinAvailableAmount());
         }
         log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
         log.warn("Total time: {}ms", (System.currentTimeMillis() - totalStartTime));
@@ -112,7 +112,9 @@ public class HighAvailabilityTest {
 
     private void makeAndTestTransfer(PostingPlan postingPlan, AccounterSrv.Iface client){
         log.info("Try hold plan. " + postingPlan.getId());
-        retry(() -> client.hold(postingPlan));
+        postingPlan.getBatchList().stream().forEach(batch ->
+                retry(() -> client.hold(new PostingPlanChange(postingPlan.getId(), batch))));
+
         log.info("Plan was held. " + postingPlan.getId());
 
         //TODO: maybe random time sleep if transfers are made in different threads
@@ -122,13 +124,13 @@ public class HighAvailabilityTest {
         log.info("Plan committed. " + postingPlan.getId());
     }
 
-    public static List<Long> createAccs(int N, AccountService service) throws TException {
+    public static List<Long> createAccs(int N, SupportAccountDao supportAccountDao) throws TException {
         AccountPrototype prototype = new AccountPrototype("RUB");
         prototype.setDescription("Test");
 
         com.rbkmoney.shumway.domain.Account domainPrototype = ProtocolConverter.convertToDomainAccount(prototype);
 
-        return service.createAccounts(domainPrototype, N);
+        return supportAccountDao.add(domainPrototype, N);
     }
 
     public static List<Long> createAccs(int N, AccounterSrv.Iface client) throws TException {
@@ -147,28 +149,24 @@ public class HighAvailabilityTest {
     }
 
     public static PostingPlan createNewPostingPlan(String ppid, long accFrom, long accTo, long amount){
-        Posting posting = new Posting(1, accFrom, accTo, amount, "RUB", "Desc");
-        return new PostingPlan(ppid, Arrays.asList(posting));
+        Posting posting = new Posting(accFrom, accTo, amount, "RUB", "Desc");
+        return new PostingPlan(ppid, Arrays.asList(new PostingBatch(1, Arrays.asList(posting))));
     }
 
     private int getPort(){
         return port;
     }
 
-    @FunctionalInterface
-    private interface Action<T> {
-        T execute() throws Exception;
-    }
-
-    private <T> T retry(Action<T> a){
+    private <T> T retry(Callable<T> a){
         return new SimpleRetrier<>(a, TIMEOUT).retry();
     }
 
     private static class SimpleRetrier<T>{
-        private Action<T> action;
+        private final Logger log = LoggerFactory.getLogger(this.getClass());
+        private Callable<T> action;
         private long timeout;
 
-        SimpleRetrier(Action<T> action, long timeout) {
+        SimpleRetrier(Callable<T> action, long timeout) {
             this.action = action;
             this.timeout = timeout;
         }
@@ -176,7 +174,7 @@ public class HighAvailabilityTest {
         T retry(){
             while (true){
                 try {
-                    return action.execute();
+                    return action.call();
                 }catch (Exception e){
                     log.error("Exception during doing some retryable actions. Wait {} ms and execute.", timeout);
                     log.error("Description: ",e);
@@ -184,6 +182,7 @@ public class HighAvailabilityTest {
                         Thread.sleep(timeout);
                     } catch (InterruptedException ignored) {
                         log.warn("Interrupted during waiting for execute.");
+                        throw new RuntimeException(e);
                     }
                 }
             }
