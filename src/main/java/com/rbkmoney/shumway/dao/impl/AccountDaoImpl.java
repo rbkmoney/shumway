@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements AccountDao {
     private final AccountMapper accountMapper = new AccountMapper();
     private final AmountStatePairMapper amountStatePairMapper = new AmountStatePairMapper();
+    private static final int BATCH_SIZE = 1000;
 
     public AccountDaoImpl(DataSource ds) {
         setDataSource(ds);
@@ -51,19 +52,19 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public void addLogs(List<AccountLog> logs) throws DaoException {
-        final String sql = "INSERT INTO shm.account_log(plan_id, posting_id, request_id, account_id, creation_time, operation, amount, own_amount, available_amount, credit) VALUES (?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?)";
-        int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, logs.size(),
+        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, amount, own_amount, own_amount_delta, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
+        int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, BATCH_SIZE,
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
-                    ps.setLong(2, argument.getPostingId());
-                    ps.setLong(3, argument.getRequestId());
-                    ps.setLong(4, argument.getAccountId());
-                    ps.setTimestamp(5, Timestamp.from(argument.getCreationTime()));
-                    ps.setString(6, argument.getOperation().getKey());
-                    ps.setLong(7, argument.getAmount());
-                    ps.setLong(8, argument.getOwnAmount());
-                    ps.setLong(9, argument.getAvailableAmount());
-                    ps.setBoolean(10, argument.isCredit());
+                    ps.setLong(2, argument.getBatchId());
+                    ps.setLong(3, argument.getAccountId());
+                    ps.setString(4, argument.getOperation().getKey());
+                    ps.setLong(5, argument.getAmount());
+                    ps.setLong(6, argument.getOwnAmount());
+                    ps.setLong(7, argument.getOwnAmountDelta());
+                    ps.setTimestamp(8, Timestamp.from(argument.getCreationTime()));
+                    ps.setBoolean(9, argument.isCredit());
+                    ps.setBoolean(10, argument.isMerged());
                 });
         boolean checked = false;
         for (int i = 0; i < updateCounts.length; ++i) {
@@ -90,57 +91,16 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         } catch (NestedRuntimeException e) {
             throw new DaoException(e);
         }
-
     }
 
     @Override
     public List<Account> get(Collection<Long> ids) throws DaoException {
-        final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE " + (ids.isEmpty() ? "false" :  "id in ("+StringUtils.collectionToDelimitedString(ids, ",")+")");
-        try {
-            return getJdbcTemplate().query(sql, accountMapper);
-        } catch (NestedRuntimeException e) {
-            throw new DaoException(e);
-        }
-    }
-
-    @Override
-    public AmountState getAmountState(long accountId) throws DaoException {
-        final String sql = "select account_log.account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id = :account_id group by account_id";
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("account_id", accountId);
-        try {
-            return getNamedParameterJdbcTemplate().queryForObject(sql, params, amountStatePairMapper).getValue();
-        } catch (EmptyResultDataAccessException e) {
-            return null;
-        } catch (NestedRuntimeException e) {
-            throw new DaoException(e);
-        }
-    }
-
-    @Override
-    public AmountState getAmountStateUpTo(long accountId, String planId) throws DaoException {
-        final String sql = "select account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id = :account_id and id <= (select max(id) from shm.account_log where plan_id =:plan_id) GROUP by account_id";
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("account_id", accountId);
-        params.addValue("plan_id", planId);
-        try {
-            return getNamedParameterJdbcTemplate().queryForObject(sql, params, amountStatePairMapper).getValue();
-        } catch (EmptyResultDataAccessException e) {
-            return null;
-        } catch (NestedRuntimeException e) {
-            throw new DaoException(e);
-        }
-    }
-
-    @Override
-    public Map<Long, AmountState> getAmountStates(List<Long> accountIds) throws DaoException {
-
-        if (accountIds.isEmpty()) {
-            return Collections.emptyMap();
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
         } else {
-            final String sql = "select account_id, SUM(own_amount) as own_amount, SUM(available_amount) as available_amount from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+") group by account_id";
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+")";
             try {
-                return getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue()));
+                return getJdbcTemplate().query(sql, accountMapper);
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
             }
@@ -148,26 +108,90 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AmountState> getAmountStatesUpTo(List<Long> accountIds, String planId) throws DaoException {
-        //TODO rewrite this
-        Map<Long, AmountState> stateMap = new HashMap<>();
-        for (Long id: accountIds) {
-            AmountState amountState = getAmountStateUpTo(id, planId);
-            if (amountState != null) {
-                stateMap.put(id, amountState);
+    public List<Account> getExclusive(Collection<Long> ids) throws DaoException {
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+") FOR UPDATE ";
+            try {
+                return getJdbcTemplate().query(sql, accountMapper);
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
             }
         }
+    }
+
+    @Override
+    public List<Account> getShared(Collection<Long> ids) throws DaoException {
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+") FOR SHARE ";
+            try {
+                return getJdbcTemplate().query(sql, accountMapper);
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
+    @Override
+    public AccountState getAccountState(long accountId) throws DaoException {
+        final String sql = "select t.account_id, sum(t.own_sum) as total_own_sum, sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum from (select account_id, plan_id, sum(own_amount) as own_sum, sum(own_amount_delta) as own_detla_sum from shm.account_log where account_id = :account_id  group by account_id, plan_id) as t GROUP BY t.account_id";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("account_id", accountId);
+        try {
+            return getNamedParameterJdbcTemplate().queryForObject(sql, params, amountStatePairMapper).getValue();
+        } catch (EmptyResultDataAccessException e) {
+            return new AccountState();
+        } catch (NestedRuntimeException e) {
+            throw new DaoException(e);
+        }
+    }
+
+    @Override
+    public Map<Long, AccountState> getAccountStates(List<Long> accountIds) throws DaoException {
+        if (accountIds.isEmpty()) {
+            return Collections.emptyMap();
+        } else {
+            final String sql = "select t.account_id, sum(t.own_sum) as total_own_sum, sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum from (select account_id, plan_id, sum(own_amount) as own_sum, sum(own_amount_delta) as own_detla_sum from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+")  group by account_id, plan_id) as t GROUP BY t.account_id";
+            try {
+               return fillAbsentValues(accountIds, getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
+    @Override
+    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException {
+        if (accountIds.isEmpty()) {
+            return Collections.emptyMap();
+        } else {
+            MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
+            final String sql = "select t.account_id, sum(t.own_sum) as total_own_sum, sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum from (select account_id, plan_id, sum(own_amount) as own_sum, sum(own_amount_delta) as own_detla_sum from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+") and id <= (select max(id) from shm.account_log where plan_id = :plan_id) group by account_id, plan_id) as t GROUP BY t.account_id";
+            try {
+                return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
+    private Map<Long, AccountState> fillAbsentValues(List<Long> accountIds, Map<Long, AccountState> stateMap) {
+        accountIds.stream().forEach(id -> stateMap.putIfAbsent(id, new AccountState()));
         return stateMap;
     }
 
-    private static class AmountStatePairMapper implements RowMapper<Pair<Long, AmountState>> {
+    private static class AmountStatePairMapper implements RowMapper<Pair<Long, AccountState>> {
         @Override
-        public Pair<Long, AmountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
-            long ownAmount = rs.getLong("own_amount");
-            long availableAmout = rs.getLong("available_amount");
+        public Pair<Long, AccountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
             long accountId = rs.getLong("account_id");
-            AmountState amountState = new AmountState(ownAmount, availableAmout);
-            return new Pair<>(accountId, amountState);
+            long ownAmount = rs.getLong("total_own_sum");
+            long maxDeltaSum = rs.getLong("max_delta_sum");
+            long minDeltaSum = rs.getLong("min_delta_sum");
+            AccountState accountState = new AccountState(ownAmount, ownAmount + maxDeltaSum, ownAmount + minDeltaSum);
+            return new Pair<>(accountId, accountState);
         }
     }
 

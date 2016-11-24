@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rbkmoney.shumway.handler.AccounterValidator.*;
+import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.*;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.DEFINED_PORT;
@@ -35,16 +37,17 @@ public class ShumwayApplicationTests {
         long id = client.createAccount(prototype);
         Account sentAccount = client.getAccountByID(id);
         assertNotNull(sentAccount);
-        assertEquals(0, sentAccount.getAvailableAmount());
+        assertEquals(0, sentAccount.getMaxAvailableAmount());
+        assertEquals(0, sentAccount.getMinAvailableAmount());
         assertEquals(0, sentAccount.getOwnAmount());
         assertEquals(prototype.getCurrencySymCode(), sentAccount.getCurrencySymCode());
         assertEquals(prototype.getDescription(), sentAccount.getDescription());
     }
-
     @Test
     public void testGetNotExistingAccount() throws TException {
         try {
             client.getAccountByID(Long.MAX_VALUE);
+            fail();
         } catch (AccountNotFound e) {
             assertEquals(Long.MAX_VALUE, e.getAccountId());
             return;
@@ -55,6 +58,7 @@ public class ShumwayApplicationTests {
     public void testGetNotExistingPlan() throws TException {
         try {
             client.getPlan(Long.MAX_VALUE + "");
+            fail();
         } catch (PlanNotFound e) {
             assertEquals(Long.MAX_VALUE + "", e.getPlanId());
             return;
@@ -63,79 +67,92 @@ public class ShumwayApplicationTests {
 
     @Test
     public void testEmptyHoldGetPlan() throws TException {
-        String planId = System.currentTimeMillis() + "";
-        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList());
-        PostingPlanLog planLog = client.hold(postingPlan);
-        assertEquals(postingPlan.getId(), planLog.getPlan().getId());
-        assertArrayEquals(postingPlan.getBatch().toArray(), planLog.getPlan().getBatch().toArray());
-        assertEquals(0, planLog.getAffectedAccountsSize());
+        try {
+            String planId = System.currentTimeMillis() + "";
+            PostingPlanChange postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList()));
+            client.hold(postingPlanChange);
+            fail();
+        } catch (InvalidRequest e) {
+            assertEquals(1, e.getErrors().size());
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_BATCH_EMPTY));
+            return;
+        }
+        fail();
     }
 
     @Test
     public void testErrHoldGetPlan() throws TException {
         long id = System.currentTimeMillis();
         String planId = id + "";
-        Posting posting = new Posting(1, id, id, -1, "RU", "Desc");
-        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        Posting posting = new Posting(id, id, -1, "RU", "Desc");
+        PostingBatch postingBatch = new PostingBatch(1, asList(posting));
+        PostingPlanChange postingPlanChange = new PostingPlanChange(planId, postingBatch);
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(SOURCE_TARGET_ACC_EQUAL_ERR, AMOUNT_NEGATIVE_ERR));
         }
 
-        posting = new Posting(1, id - 1, id, -1, "RU", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        posting = new Posting(id - 1, id, -1, "RU", "Desc");
+        postingBatch = new PostingBatch(1, asList(posting));
+        postingPlanChange = new PostingPlanChange(planId, postingBatch);
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(AMOUNT_NEGATIVE_ERR));
         }
-        posting = new Posting(1, id - 1, id, 1, "RU", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        posting = new Posting(id - 1, id, 1, "RU", "Desc");
+        postingBatch = new PostingBatch(1, asList(posting));
+        postingPlanChange = new PostingPlanChange(planId, postingBatch);
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(SRC_ACC_NOT_FOUND_ERR, DST_ACC_NOT_FOUND_ERR));
         }
 
         try {
-            client.getPlan(postingPlan.getId());
+            client.getPlan(planId);
+            fail();
         } catch (PlanNotFound e) {
             assertEquals(planId, e.getPlanId());
         }
     }
-
     @Test
     public void testErrAccountHold() throws TException {
         long id = System.currentTimeMillis();
         String planId = id + "";
         long fromAccountId = client.createAccount(new AccountPrototype("RU"));
-        Posting posting = new Posting(1, fromAccountId, id, 1, "RU", "Desc");
-        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        Posting posting = new Posting(fromAccountId, id, 1, "RU", "Desc");
+        PostingPlanChange postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
 
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(DST_ACC_NOT_FOUND_ERR));
         }
 
         long toAccountId = client.createAccount(new AccountPrototype(posting.getCurrencySymCode()));
-        posting = new Posting(1, fromAccountId, toAccountId, 1, "ERR", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        posting = new Posting(fromAccountId, toAccountId, 1, "ERR", "Desc");
+        postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(ACC_CURR_CODE_NOT_EQUAL_ERR, ACC_CURR_CODE_NOT_EQUAL_ERR));
         }
 
-        posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        client.hold(postingPlan);
+        posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
+        postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
+        client.hold(postingPlanChange);
     }
 
     @Test
@@ -145,74 +162,126 @@ public class ShumwayApplicationTests {
         long fromAccountId = client.createAccount(new AccountPrototype("RU"));
         long toAccountId = client.createAccount(new AccountPrototype("RU"));
 
-        Posting posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
-        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        PostingPlanLog planLog = client.hold(postingPlan);
+        Posting posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
+        PostingBatch postingBatch = new PostingBatch(1, asList(posting));
+        PostingPlanChange postingPlanChange = new PostingPlanChange(planId, postingBatch);
+        PostingPlanLog planLog = client.hold(postingPlanChange);
 
-        assertEquals(planLog.getPlan(), client.getPlan(planLog.getPlan().getId()));
-        assertEquals(planLog.getPlan(), client.getPlan(postingPlan.getId()));
         assertEquals(2, planLog.getAffectedAccountsSize());
-        assertEquals("Debit includes hold for src available amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getAvailableAmount());
+        assertEquals("Src Max available hope on credit rollback", 0, planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
+        assertEquals("Src Min available hope on credit commit", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
         assertEquals("Debit doesn't include hold for src own amount ", 0, planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
-        assertEquals("Credit doesn't include hold for dst available amount", 0, planLog.getAffectedAccounts().get(toAccountId).getAvailableAmount());
+        assertEquals("Dst Max available hope on debit commit", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
+        assertEquals("Dst Min available hope on debit rollback", 0, planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
         assertEquals("Credit doesn't include hold for dst own amount", 0, planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
 
-        assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlan));
+        assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlanChange));
 
-        Posting posting2 = new Posting(2, fromAccountId, toAccountId, 5, "RU", "Desc");
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting, posting2));
+        Posting posting2 = new Posting(fromAccountId, toAccountId, 5, "RU", "Desc");
+        postingBatch = new PostingBatch(2, asList(posting, posting2));
+        PostingPlan postingPlan = new PostingPlan(planId, asList(postingBatch));
 
         try {
             client.commitPlan(postingPlan);
+            fail();
         } catch (InvalidPostingParams ex) {
-            assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NEW_OLD_RECEIVED_ERR));
+            assertEquals(2, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
         try {
             client.rollbackPlan(postingPlan);
+            fail();
+        } catch (InvalidPostingParams ex) {
+            assertEquals(2, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
+        }
+
+        postingBatch = new PostingBatch(1, asList(posting, posting2));
+        postingPlan = new PostingPlan(planId, asList(postingBatch));
+
+        try {
+            client.commitPlan(postingPlan);
+            fail();
         } catch (InvalidPostingParams ex) {
             assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NEW_OLD_RECEIVED_ERR));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
+        try {
+            client.rollbackPlan(postingPlan);
+            fail();
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
+        }
+
 
         postingPlan = new PostingPlan(planId, Lists.emptyList());
         try {
             client.commitPlan(postingPlan);
-        } catch (InvalidPostingParams ex) {
-            assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
+            fail();
+        } catch (InvalidRequest ex) {
+            assertEquals(1, ex.getErrorsSize());
+            assertThat(ex.getErrors().get(0), genMatcher(POSTING_PLAN_EMPTY));
         }
         try {
             client.rollbackPlan(postingPlan);
-        } catch (InvalidPostingParams ex) {
-            assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
+            fail();
+        } catch (InvalidRequest ex) {
+            assertEquals(1, ex.getErrorsSize());
+            assertThat(ex.getErrors().get(0), genMatcher(POSTING_PLAN_EMPTY));
         }
 
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting2));
+        postingBatch = new PostingBatch(1, asList(posting2));
+        postingPlan = new PostingPlan(planId, asList(postingBatch));
         try {
             client.commitPlan(postingPlan);
+            fail();
         } catch (InvalidPostingParams ex) {
-            assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NOT_FOUND_ERR));
+            assertEquals(2, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
         try {
             client.rollbackPlan(postingPlan);
+            fail();
         } catch (InvalidPostingParams ex) {
-            assertEquals(1, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting2), genMatcher(POSTING_NOT_FOUND_ERR));
+            assertEquals(2, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
 
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        postingPlan = new PostingPlan(planId, asList(new PostingBatch(1, asList(posting)), new PostingBatch(2, asList(posting2))));
+
+        try {
+            client.commitPlan(postingPlan);
+            fail();
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
+        }
+        try {
+            client.rollbackPlan(postingPlan);
+            fail();
+        } catch (InvalidPostingParams ex) {
+            assertEquals(1, ex.getWrongPostingsSize());
+            assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
+        }
+
+        postingPlan = new PostingPlan(planId, asList(new PostingBatch(1, asList(posting))));
         planLog = client.commitPlan(postingPlan);
         assertEquals(2, planLog.getAffectedAccountsSize());
-        assertEquals("Debit includes commit for src available amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getAvailableAmount());
+        assertEquals("Debit sets max available amount to own amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
+        assertEquals("Debit sets min available amount to own amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
         assertEquals("Debit includes commit for src own amount ", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
-        assertEquals("Credit includes commit for dst available amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getAvailableAmount());
+        assertEquals("Credit sets max available amount to own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
+        assertEquals("Credit sets max available amount to own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
         assertEquals("Credit includes commit for dst own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
 
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidRequest e) {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
@@ -221,6 +290,7 @@ public class ShumwayApplicationTests {
 
         try {
             client.rollbackPlan(postingPlan);
+            fail();
         } catch (InvalidRequest e) {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
@@ -235,17 +305,18 @@ public class ShumwayApplicationTests {
         long fromAccountId = client.createAccount(new AccountPrototype("RU"));
         long toAccountId = client.createAccount(new AccountPrototype("RU"));
 
-        Posting posting = new Posting(1, fromAccountId, toAccountId, 1, "RU", "Desc");
-        PostingPlan postingPlan = new PostingPlan(planId, Arrays.asList(posting));
-        PostingPlanLog planLog = client.hold(postingPlan);
+        Posting posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
+        PostingPlanChange postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
+        PostingPlanLog planLog = client.hold(postingPlanChange);
 
-        assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlan));
+        assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlanChange));
 
-        postingPlan = new PostingPlan(planId, Arrays.asList(posting));
+        PostingPlan postingPlan = new PostingPlan(planId, asList(new PostingBatch(1, asList(posting))));
         planLog = client.rollbackPlan(postingPlan);
 
         try {
-            client.hold(postingPlan);
+            client.hold(postingPlanChange);
+            fail();
         } catch (InvalidRequest e) {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
@@ -254,6 +325,7 @@ public class ShumwayApplicationTests {
 
         try {
             client.commitPlan(postingPlan);
+            fail();
         } catch (InvalidRequest e) {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_STATE_CHANGE_ERR));
         }
@@ -268,29 +340,40 @@ public class ShumwayApplicationTests {
         PostingPlan postingPlan = new PostingPlan(planId, Collections.emptyList());
         try {
             client.commitPlan(postingPlan);
+            fail();
         } catch (InvalidRequest e) {
-            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_NOT_FOUND_ERR));
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_EMPTY));
         }
         try {
            client.rollbackPlan(postingPlan);
+            fail();
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_EMPTY));
+        }
+        PostingPlanLog planLog = new PostingPlanLog(Collections.emptyMap());
+
+        try {
+            assertEquals(planLog, client.hold(new PostingPlanChange(planId, new PostingBatch(1, asList()))));
+            fail();
+        } catch (InvalidRequest e) {
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_BATCH_EMPTY));
+        }
+
+        try {
+            client.getPlan(planId);
+            fail();
+        } catch (PlanNotFound e) {
+            assertEquals(planId, e.getPlanId());
+        }
+
+        Posting posting = new Posting(0, 1, 1, "RU", "Desc");
+        try {
+            client.commitPlan(new PostingPlan(planId, asList(new PostingBatch(1, Arrays.asList(posting)))));
+            fail();
         } catch (InvalidRequest e) {
             assertThat(e.getErrors().get(0), genMatcher(POSTING_PLAN_NOT_FOUND_ERR));
         }
-        PostingPlanLog planLog = new PostingPlanLog(postingPlan);
-        planLog.setAffectedAccounts(Collections.emptyMap());
 
-        assertEquals(planLog, client.hold(postingPlan));
-
-        assertEquals(postingPlan, client.getPlan(planId));
-
-        Posting posting = new Posting(1, 0, 1, 1, "RU", "Desc");
-        try {
-            client.commitPlan(new PostingPlan(planId, Arrays.asList(posting)));
-        } catch (InvalidPostingParams e) {
-            assertThat(e.getWrongPostings().get(posting), genMatcher(POSTING_NOT_FOUND_ERR));
-        }
-
-        assertEquals(planLog, client.commitPlan(postingPlan));
     }
 
     @Test
@@ -304,114 +387,115 @@ public class ShumwayApplicationTests {
         long toAccountId2 = client.createAccount(new AccountPrototype("RU"));
 
         //Create and hold plan1
-        Posting posting11 = new Posting(1, fromAccountId1, toAccountId1, 10, "RU", "Desc");
-        Posting posting12 = new Posting(2, fromAccountId2, fromAccountId1, 25, "RU", "Desc");
+        Posting posting11 = new Posting(fromAccountId1, toAccountId1, 10, "RU", "Desc");
+        Posting posting12 = new Posting(fromAccountId2, fromAccountId1, 25, "RU", "Desc");
         String planId1 = planId+"_1";
-        PostingPlan plan1 = new PostingPlan(planId1, Arrays.asList(posting11, posting12));
-        PostingPlanLog planLog1 = client.hold(plan1);
-        assertEquals(plan1, planLog1.getPlan());
+        PostingPlanChange planChange1 = new PostingPlanChange(planId1, new PostingBatch(1, asList(posting11, posting12)));
+        PostingPlanLog planLog1 = client.hold(planChange1);
         assertEquals(3, planLog1.getAffectedAccountsSize());
 
         assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(-10, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+        assertEquals(15, planLog1.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
         assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+        assertEquals(10, planLog1.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
         assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-25, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+        assertEquals(-25, planLog1.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
 
         //Create and hold plan2
-        Posting posting21 = new Posting(1, fromAccountId1, toAccountId1, 7, "RU", "Desc");
-        Posting posting22 = new Posting(2, fromAccountId2, fromAccountId1, 18, "RU", "Desc");
+        Posting posting21 = new Posting(fromAccountId1, toAccountId1, 7, "RU", "Desc");
+        Posting posting22 = new Posting(fromAccountId2, fromAccountId1, 18, "RU", "Desc");
         String planId2 = planId+"_2";
-        PostingPlan plan2 = new PostingPlan(planId2, Arrays.asList(posting21, posting22));
 
-        PostingPlanLog planLog2 = client.hold(plan2);
+        PostingPlanLog planLog2 = client.hold(new PostingPlanChange(planId2, new PostingBatch(1, asList(posting21, posting22))));
 
-        assertEquals(plan2, planLog2.getPlan());
         assertEquals(3, planLog2.getAffectedAccountsSize());
 
         assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(-17, planLog2.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+        assertEquals(26, planLog2.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+        assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
         assertEquals(0, planLog2.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(0, planLog2.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+        assertEquals(17, planLog2.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+        assertEquals(0, planLog2.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
         assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(0, planLog2.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
 
         //Commit plan2
+        PostingPlan plan2 = new PostingPlan(planId2, Arrays.asList(new PostingBatch(1, asList(posting21, posting22))));
         planLog2 = client.commitPlan(plan2);
 
-        assertEquals(plan2, planLog2.getPlan());
         assertEquals(3, planLog2.getAffectedAccountsSize());
 
         assertEquals(11, planLog2.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(1, planLog2.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+        assertEquals(26, planLog2.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+        assertEquals(11, planLog2.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
         assertEquals(7, planLog2.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(7, planLog2.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+        assertEquals(17, planLog2.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+        assertEquals(7, planLog2.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
         assertEquals(-18, planLog2.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(-18, planLog2.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+        assertEquals(-43, planLog2.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
 
         //Create and hold plan3
-        Posting posting31 = new Posting(1, fromAccountId1, toAccountId1, 70, "RU", "Desc");
-        Posting posting32 = new Posting(2, fromAccountId2, toAccountId2, 180, "RU", "Desc");
+        Posting posting31 = new Posting(fromAccountId1, toAccountId1, 70, "RU", "Desc");
+        Posting posting32 = new Posting(fromAccountId2, toAccountId2, 180, "RU", "Desc");
         String planId3 = planId+"_3";
-        PostingPlan plan3 = new PostingPlan(planId3, Arrays.asList(posting31, posting32));
 
-        PostingPlanLog planLog3 = client.hold(plan3);
+        client.hold(new PostingPlanChange(planId3, new PostingBatch(1, asList(posting31, posting32))));
 
         //Rollback plan3
-        planLog3 = client.rollbackPlan(plan3);
+        PostingPlan plan3 = new PostingPlan(planId3, asList(new PostingBatch(1, asList(posting31, posting32))));
 
-        assertEquals(plan3, planLog3.getPlan());
+        PostingPlanLog planLog3 = client.rollbackPlan(plan3);
+
         assertEquals(4, planLog3.getAffectedAccountsSize());
 
         assertEquals(11, planLog3.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(1, planLog3.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+        assertEquals(26, planLog3.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+        assertEquals(11, planLog3.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
         assertEquals(7, planLog3.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(7, planLog3.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+        assertEquals(17, planLog3.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+        assertEquals(7, planLog3.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
         assertEquals(-18, planLog3.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-43, planLog3.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(-18, planLog3.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+        assertEquals(-43, planLog3.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
 
         assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getOwnAmount());
-        assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getAvailableAmount());
+        assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getMaxAvailableAmount());
+        assertEquals(0, planLog3.getAffectedAccounts().get(toAccountId2).getMinAvailableAmount());
 
         //Test that duplicate hold for plan1 returns same data
-        planLog1 = client.hold(plan1);
-        assertEquals(plan1, planLog1.getPlan());
-        assertEquals(3, planLog1.getAffectedAccountsSize());
-
-        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(-10, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
-
-        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(0, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
-
-        assertEquals(0, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-25, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(planLog1, client.hold(planChange1));
 
         //Created and rollback plan3 before plan1 committed
 
         //Commit plan1
-        planLog1 = client.commitPlan(plan1);
+        planLog1 = client.commitPlan(new PostingPlan(planId1, asList(planChange1.getBatch())));
 
-        assertEquals(plan1, planLog1.getPlan());
         assertEquals(3, planLog1.getAffectedAccountsSize());
 
         assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-        assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getAvailableAmount());
+        assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+        assertEquals(26, planLog1.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
         assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-        assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getAvailableAmount());
+        assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+        assertEquals(17, planLog1.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
         assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-        assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getAvailableAmount());
+        assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+        assertEquals(-43, planLog1.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
     }
 
 

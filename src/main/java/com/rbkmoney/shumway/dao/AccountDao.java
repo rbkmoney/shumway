@@ -2,7 +2,7 @@ package com.rbkmoney.shumway.dao;
 
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
-import com.rbkmoney.shumway.domain.AmountState;
+import com.rbkmoney.shumway.domain.AccountState;
 
 import java.util.Collection;
 import java.util.List;
@@ -16,8 +16,9 @@ public interface AccountDao {
     void addLogs(List<AccountLog> accountLogs) throws DaoException;
     Account get(long id) throws DaoException;
     List<Account> get(Collection<Long> ids) throws DaoException;
-    AmountState getAmountState(long accountId) throws DaoException;
-    AmountState getAmountStateUpTo(long accountId, String planId) throws DaoException;
-    Map<Long, AmountState> getAmountStates(List<Long> accountIds) throws DaoException;
-    Map<Long, AmountState> getAmountStatesUpTo(List<Long> accountIds, String planId) throws DaoException;
+    List<Account> getExclusive(Collection<Long> ids) throws DaoException;
+    List<Account> getShared(Collection<Long> ids) throws DaoException;
+    AccountState getAccountState(long accountId) throws DaoException;
+    Map<Long, AccountState> getAccountStates(List<Long> accountIds) throws DaoException;
+    Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException;
 }

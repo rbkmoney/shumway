@@ -2,44 +2,45 @@ package com.rbkmoney.shumway.handler;
 
 import com.rbkmoney.damsel.accounter.AccountPrototype;
 import com.rbkmoney.damsel.accounter.Posting;
+import com.rbkmoney.damsel.accounter.PostingBatch;
 import com.rbkmoney.damsel.accounter.PostingPlan;
 import com.rbkmoney.shumway.domain.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by vpankrashkin on 19.09.16.
  */
 public class ProtocolConverter {
-    private static final Logger log = LoggerFactory.getLogger(ProtocolConverter.class);
 
     public static Account convertToDomainAccount(AccountPrototype protocolPrototype) {
         return new Account(0, Instant.now(), protocolPrototype.getCurrencySymCode(), protocolPrototype.getDescription());
     }
 
     public static com.rbkmoney.damsel.accounter.Account convertFromDomainAccount(StatefulAccount domainAccount) {
-        AmountState amountState = domainAccount.getAmountState();
-        com.rbkmoney.damsel.accounter.Account protocolAccount = new com.rbkmoney.damsel.accounter.Account(domainAccount.getId(), amountState != null ? amountState.getOwnAmount() : 0, amountState != null ? amountState.getAvailableAmount() : 0, domainAccount.getCurrSymCode());
+        AccountState accountState = domainAccount.getAccountState();
+        com.rbkmoney.damsel.accounter.Account protocolAccount = new com.rbkmoney.damsel.accounter.Account(domainAccount.getId(), accountState.getOwnAmount(), accountState.getMaxAvailableAmount(), accountState.getMinAvailableAmount(), domainAccount.getCurrSymCode());
         protocolAccount.setDescription(domainAccount.getDescription());
         return protocolAccount;
     }
 
     public static Posting convertFromDomainToPosting(PostingLog domainPostingLog) {
-        Posting protocolPosting = new Posting(domainPostingLog.getPostingId(), domainPostingLog.getFromAccountId(), domainPostingLog.getToAccountId(), domainPostingLog.getAmount(), domainPostingLog.getCurrSymCode(), domainPostingLog.getDescription());
-        return protocolPosting;
+        return new Posting(domainPostingLog.getFromAccountId(), domainPostingLog.getToAccountId(), domainPostingLog.getAmount(), domainPostingLog.getCurrSymCode(), domainPostingLog.getDescription());
     }
 
     public static PostingLog convertToDomainPosting(Posting protocolPosting,  com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) {
-        PostingLog domainPosting = new PostingLog(0, currentDomainPlanLog.getPlanId(), protocolPosting.getId(), currentDomainPlanLog.getLastRequestId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
-        return domainPosting;
+        return new PostingLog(0, currentDomainPlanLog.getPlanId(), currentDomainPlanLog.getLastBatchId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
     }
 
-
     public static PostingPlanLog convertToDomainPlan(PostingPlan protocolPostingPlan, PostingOperation domainPostingOperation) {
-        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, 0);
+        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, protocolPostingPlan.getBatchList().get(0).getId());
         return domainPlanLog;
+    }
+
+    public static PostingBatch convertFromDomainToBatch(long batchId, List<PostingLog> domainPostings) {
+        return new PostingBatch(batchId, domainPostings.stream().map(ProtocolConverter::convertFromDomainToPosting).collect(Collectors.toList()));
     }
 
 }
