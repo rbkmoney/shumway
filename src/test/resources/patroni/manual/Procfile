@@ -1,0 +1,3 @@
+p0000: patroni postgres0.yml
+p1111: patroni postgres1.yml
+p2222: patroni postgres2.yml

@@ -13,6 +13,7 @@ import java.util.Map;
  */
 public interface AccountDao {
     long add(Account prototype) throws DaoException;
+    List<Long> add(Account prototype, int numberOfAccs) throws DaoException;
     void addLogs(List<AccountLog> accountLogs) throws DaoException;
     Account get(long id) throws DaoException;
     List<Account> get(Collection<Long> ids) throws DaoException;
