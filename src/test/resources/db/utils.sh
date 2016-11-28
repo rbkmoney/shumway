@@ -32,8 +32,9 @@ then
         -Fd \
         -v \
         -j 4 \
-        -h $DB_HOST \
         -U $DB_SUPERUSER \
+        -h $DB_HOST \
+        -p $DB_PORT \
         -f $DUMP_PATH \
         $DB_NAME
 
@@ -48,8 +49,9 @@ then
         -e \
         -v \
         -j 4 \
-        -h $DB_HOST \
         -U $DB_SUPERUSER \
+        -h $DB_HOST \
+        -p $DB_PORT \
         $DUMP_PATH
 else
     mkdir -p ${SCRIPT_DIR}/sql

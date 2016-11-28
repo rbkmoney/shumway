@@ -25,14 +25,18 @@ public class PostgresUtils {
     private String superUser;
     private String password;
     private String database;
+    private String bashScriptPath;
 
-    public static void main(String[] args)  {
+    public static void main(String[] args) throws IOException {
+        final String bashScriptPath = new ClassPathResource("db/utils.sh").getFile().getAbsolutePath();
+        
         final PostgresUtils utils = PostgresUtils.builder()
                 .host("localhost")
                 .port(5432)
                 .superUser("postgres")
                 .password("postgres")
                 .database("shumway")
+                .bashScriptPath(bashScriptPath)
                 .build();
 
         final String dumpPath = "/tmp/shumway.dump";
@@ -55,80 +59,80 @@ public class PostgresUtils {
     public void createDb() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-db");
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void createSnapshot(String snapshotSuffix) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-snapshot");
         envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void restoreSnapshot(String snapshotSuffix) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "restore-snapshot");
         envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void dropSnapshot(String snapshotSuffix) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "drop-snapshot");
         envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void createSnapshot() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-snapshot");
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void restoreSnapshot() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "restore-snapshot");
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void dropSnapshot() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "drop-snapshot");
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
 
     public void dropDb() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "drop-db");
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void dropDb(String dbName) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "drop-db");
         envs.put(DB_NAME, dbName);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void createDump(String dumpPath){
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-dump");
         envs.put(DUMP_PATH, dumpPath);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
 
     public void restoreDump(String dumpPath){
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "restore-dump");
         envs.put(DUMP_PATH, dumpPath);
-        runAndOutToStdout(getUtilsPath(), envs);
+        runAndOutToStdout(envs);
     }
-    public static void runAndOutToStdout(String bashCmd, Map<String, String> envs){
-        runAndOutToStdout(bashCmd, envs, true);
+    public void runAndOutToStdout(Map<String, String> envs){
+        run(bashScriptPath, envs, true);
     }
 
-    public static void runAndOutToStdout(String bashCmd, Map<String, String> envs, boolean redirectStdouts) {
+    public static void run(String bashCmd, Map<String, String> envs, boolean redirectStdouts) {
         try {
             ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
             if(redirectStdouts) {
@@ -146,14 +150,7 @@ public class PostgresUtils {
         }
     }
 
-    public static String getUtilsPath() {
-        try {
-            return new ClassPathResource("db/utils.sh").getFile().getAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
+    // ! should return new Map every time
     public Map<String, String> getDefaultEnvs(){
         final Map<String, String> envs = new HashMap<>();
         if(host != null) envs.put(DB_HOST, host);

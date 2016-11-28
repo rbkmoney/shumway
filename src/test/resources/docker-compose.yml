@@ -1,5 +1,5 @@
 postgres:
-  image: postgres:9.6
+  image: postgres:9.5.5
   environment:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
