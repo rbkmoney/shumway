@@ -10,18 +10,16 @@
 set -e
 set -u
 
-SCRIPT_DIR="$(dirname $0)"
+export DB_HOST="${DB_HOST:-localhost}"
+export DB_PORT="${DB_PORT:-5432}"
+export DB_USER="${DB_USER:-postgres}"
+export DB_NAME="${DB_NAME:-shumway}"
+export DB_SUPERUSER="${DB_SUPERUSER:-postgres}"
+export PGPASSWORD="${PGPASSWORD:-postgres}"
+export SNAPSHOT_SUFFIX="${SNAPSHOT_SUFFIX:-1}"
 
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-shumway}"
-DB_PASSWORD="${DB_PASSWORD:-postgres}"
-DB_SUPERUSER="${DB_SUPERUSER:-postgres}"
-DB_SUPERUSER_PASSWORD="${DB_SUPERUSER_PASSWORD:-postgres}"
-
-PGPASSWORD="${PGPASSWORD:-postgres}"
-
+export SCRIPT_DIR="$(dirname $0)"
+export SNAPSHOT=snapshot_of_${DB_NAME}_${SNAPSHOT_SUFFIX}
 
 if [ $TEMPLATE = "create-dump" ]
 then
@@ -42,10 +40,10 @@ then
     echo "DUMP_PATH=$DUMP_PATH"
 elif [ $TEMPLATE = "restore-dump" ]
 then
-    TEMPLATE=drop-db DB_NAME=$DB_NAME ${SCRIPT_DIR}/utils.sh
-    TEMPLATE=create-db DB_NAME=$DB_NAME ${SCRIPT_DIR}/utils.sh
+    TEMPLATE=drop-db ${SCRIPT_DIR}/utils.sh
+    TEMPLATE=create-db ${SCRIPT_DIR}/utils.sh
 
-    PGPASSWORD=$PGPASSWORD pg_restore \
+    pg_restore \
         -d $DB_NAME \
         -e \
         -v \
@@ -56,10 +54,10 @@ then
 else
     mkdir -p ${SCRIPT_DIR}/sql
     # generate sql from template
-    DB_NAME=$DB_NAME ${SCRIPT_DIR}/template/"$TEMPLATE".tpl > ${SCRIPT_DIR}/sql/"$TEMPLATE".sql
+    ${SCRIPT_DIR}/template/"$TEMPLATE".tpl > ${SCRIPT_DIR}/sql/"$TEMPLATE".sql
 
     # execute psql
-    PGPASSWORD=$PGPASSWORD psql \
+    psql \
         -X \
         -U $DB_SUPERUSER \
         -h $DB_HOST \
