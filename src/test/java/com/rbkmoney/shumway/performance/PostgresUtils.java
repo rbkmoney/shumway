@@ -19,6 +19,8 @@ public class PostgresUtils {
     public static final String DB_NAME = "DB_NAME";
     public static final String DUMP_PATH = "DUMP_PATH";
     public static final String SNAPSHOT_SUFFIX = "SNAPSHOT_SUFFIX";
+    public static final String CONTAINER_ID = "CONTAINER_ID";
+    public static final String UTILS_SH_IN_CONTAINER = "UTILS_SH_IN_CONTAINER";
 
     private String host;
     private Integer port;
@@ -26,10 +28,13 @@ public class PostgresUtils {
     private String password;
     private String database;
     private String bashScriptPath;
+    private String containerId;
+    private String bashScriptInContainerPath;
 
     public static void main(String[] args) throws IOException {
         final String bashScriptPath = new ClassPathResource("db/utils.sh").getFile().getAbsolutePath();
-        
+
+        // configure utils for local postgres
         final PostgresUtils utils = PostgresUtils.builder()
                 .host("localhost")
                 .port(5432)
@@ -40,8 +45,8 @@ public class PostgresUtils {
                 .build();
 
         final String dumpPath = "/tmp/shumway.dump";
-//        utils.dropDb();
-//        utils.createDb();
+        utils.dropDb();
+        utils.createDb();
         t("createDump", () -> utils.createDump(dumpPath));
         t("createSnapshot", () -> utils.createSnapshot());
         utils.dropDb();
@@ -158,6 +163,8 @@ public class PostgresUtils {
         if(superUser != null) envs.put(DB_SUPERUSER, superUser);
         if(password != null) envs.put(PGPASSWORD, password);
         if(database != null) envs.put(DB_NAME, database);
+        if(containerId != null) envs.put("CONTAINER_ID", containerId);
+        if(bashScriptInContainerPath != null) envs.put("UTILS_SH_IN_CONTAINER", bashScriptInContainerPath);
 
         return envs;
     }
