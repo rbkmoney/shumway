@@ -4,10 +4,13 @@ import lombok.Builder;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.ClassPathResource;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Builder
 public class PostgresUtils {
@@ -21,6 +24,7 @@ public class PostgresUtils {
     public static final String SNAPSHOT_SUFFIX = "SNAPSHOT_SUFFIX";
     public static final String CONTAINER_ID = "CONTAINER_ID";
     public static final String UTILS_SH_IN_CONTAINER = "UTILS_SH_IN_CONTAINER";
+    public static final String PSQL_COMMAND = "PSQL_COMMAND";
 
     private String host;
     private Integer port;
@@ -30,6 +34,7 @@ public class PostgresUtils {
     private String bashScriptPath;
     private String containerId;
     private String bashScriptInContainerPath;
+    private boolean showOutput;
 
     public static void main(String[] args) throws IOException {
         final String bashScriptPath = new ClassPathResource("db/utils.sh").getFile().getAbsolutePath();
@@ -42,6 +47,7 @@ public class PostgresUtils {
                 .password("postgres")
                 .database("shumway")
                 .bashScriptPath(bashScriptPath)
+                .showOutput(true)
                 .build();
 
         final String dumpPath = "/tmp/shumway.dump";
@@ -133,8 +139,23 @@ public class PostgresUtils {
         envs.put(DUMP_PATH, dumpPath);
         runAndOutToStdout(envs);
     }
+
+    public void psql(String sql){
+        Map<String, String> envs = getDefaultEnvs();
+        envs.put(TEMPLATE, "psql-command");
+        envs.put(PSQL_COMMAND, sql);
+        runAndOutToStdout(envs);
+    }
+
+    public String psqlToString(String sql){
+        Map<String, String> envs = getDefaultEnvs();
+        envs.put(TEMPLATE, "psql-command");
+        envs.put(PSQL_COMMAND, sql);
+        return run(bashScriptPath, envs);
+    }
+
     public void runAndOutToStdout(Map<String, String> envs){
-        run(bashScriptPath, envs, true);
+        run(bashScriptPath, envs, showOutput);
     }
 
     public static void run(String bashCmd, Map<String, String> envs, boolean redirectStdouts) {
@@ -150,6 +171,27 @@ public class PostgresUtils {
             if(exitCode != 0){
                 throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode );
             }
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String run(String bashCmd, Map<String, String> envs) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
+            pb.environment().putAll(envs);
+            Process p = pb.start();
+
+            String ret;
+            try (BufferedReader buffer = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                ret =  buffer.lines().collect(Collectors.joining("\n"));
+            }
+
+            int exitCode = p.waitFor();
+            if(exitCode != 0){
+                throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode );
+            }
+            return ret;
         }catch (Exception e){
             throw new RuntimeException(e);
         }

@@ -26,6 +26,12 @@ then
     DEFAULT_DUMP_PATH=${SCRIPT_DIR}/dumps/$DB_NAME-$(date +%s).bak
     DUMP_PATH="${DUMP_PATH:-$DEFAULT_DUMP_PATH}"
 
+    # relative path to absolute path
+    if ! [[ "${DUMP_PATH}" == \/* ]]
+    then
+        DUMP_PATH=${SCRIPT_DIR}/dumps/${DUMP_PATH}
+    fi
+
     mkdir -p ${SCRIPT_DIR}/dumps
 
     PGPASSWORD=$PGPASSWORD pg_dump \
@@ -44,6 +50,12 @@ then
     TEMPLATE=drop-db ${SCRIPT_DIR}/utils.sh
     TEMPLATE=create-db ${SCRIPT_DIR}/utils.sh
 
+    # relative path to absolute path
+    if ! [[ "${DUMP_PATH}" == \/* ]]
+    then
+        DUMP_PATH=${SCRIPT_DIR}/dumps/${DUMP_PATH}
+    fi
+
     pg_restore \
         -d $DB_NAME \
         -e \
@@ -53,6 +65,28 @@ then
         -h $DB_HOST \
         -p $DB_PORT \
         $DUMP_PATH
+elif [ $TEMPLATE = "psql-command" ]
+then
+    # execute psql
+    psql \
+        -X \
+        -U $DB_SUPERUSER \
+        -h $DB_HOST \
+        -p $DB_PORT \
+        -c "${PSQL_COMMAND}" \
+        --echo-all \
+        --set AUTOCOMMIT=off \
+        -v ON_ERROR_STOP=1
+
+    PSQL_EXIT_STATUS=$?
+
+    if [ $PSQL_EXIT_STATUS != 0 ]; then
+        echo "psql failed while trying to run this sql script." 1>&2
+        exit $PSQL_EXIT_STATUS
+    fi
+
+    echo "sql script successful."
+    exit 0
 else
     mkdir -p ${SCRIPT_DIR}/sql
     # generate sql from template
