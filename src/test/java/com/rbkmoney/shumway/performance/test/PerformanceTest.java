@@ -25,10 +25,10 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 public class PerformanceTest {
     private static final int NUMBER_OF_THREADS = 8;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
-    private static final int NUMBER_OF_ACCS = 1000;
+    private static final int NUMBER_OF_ACCS = 100;
     private static final int AMOUNT = 1000;
 
-    private static final String DUMP_PATH = "one_million.bak";
+    private static final String DUMP_PATH = "10_000.bak";
     private static PostgresUtils utils;
 
     @Autowired
@@ -49,23 +49,50 @@ public class PerformanceTest {
                 .password("postgres")
                 .database("shumway")
                 .bashScriptPath(new ClassPathResource("db/utils.sh").getFile().getAbsolutePath())
-                .showOutput(true)
+                .showOutput(false)
                 .build();
 
-//        utils.restoreDump(DUMP_PATH);
-        utils.restoreSnapshot();
-        utils.vacuumAnalyze();
+//        t("restoreDump",() -> utils.restoreDump(DUMP_PATH));
+//        t("createSnapshot",() -> utils.createSnapshot());
     }
 
     @Test
-    public void test() throws InterruptedException {
-        List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
-        AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT);
-        AccountUtils.startCircleCheck(accountDao, accIds, 0);
-
-        utils.createDump("two_million.bak");
+    public void test1() throws Exception{
+        utils.restoreSnapshot();
+        utils.vacuumAnalyze();
+        test();
     }
 
+    @Test
+    public void test2() throws Exception{
+        utils.restoreSnapshot();
+        utils.psqlCommit("drop index shm.account_log_plan_id_idx;");
+        utils.psqlCommit("alter table shm.posting_log drop constraint posting_log_pkey;");
+        utils.vacuumAnalyze();
+        test();
+    }
+
+    @Test
+    public void test3() throws Exception {
+        utils.restoreSnapshot();
+        utils.psqlCommit("drop index shm.account_log_plan_id_idx;");
+        utils.psqlCommit("drop index shm.account_log_account_id_operation_idx;");
+        utils.psqlCommit("create index acc_test_idx on shm.account_log using btree (plan_id, batch_id, account_id, own_amount, own_amount_delta);");
+        utils.psqlCommit("create index account_log_account_id_idx on shm.account_log using btree (account_id);");
+        utils.vacuumAnalyze();
+        test();
+    }
+
+    public void test() throws InterruptedException {
+        List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
+        int numberOfRounds = 100;
+        double avgTime = AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT, numberOfRounds);
+
+        System.out.println("NUMBER_OF_THREADS: " + NUMBER_OF_THREADS);
+        System.out.println("NUMBER_OF_ACCS: " + NUMBER_OF_ACCS);
+        System.out.println("NUMBER_OF_ROUNDS: " + numberOfRounds);
+        System.out.println("AVG_TIME(ms): " + avgTime);
+    }
 
     private static void t(String preffix, Runnable function){
         long startTime = System.currentTimeMillis();

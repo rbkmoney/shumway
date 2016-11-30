@@ -155,6 +155,13 @@ public class PostgresUtils {
         runAndOutToStdout(envs);
     }
 
+    public void psqlCommit(String sql){
+        psql("begin; \n" +
+                sql + " \n" +
+             "commit;"
+        );
+    }
+
     public String psqlToString(String sql){
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "psql-command");

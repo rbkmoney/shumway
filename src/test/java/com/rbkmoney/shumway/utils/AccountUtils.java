@@ -54,13 +54,15 @@ public class AccountUtils {
         log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
     }
 
-    public static void startCircleTransfer(AccounterSrv.Iface client, List<Long> accs,
+    public static double startCircleTransfer(AccounterSrv.Iface client, List<Long> accs,
                                            int numberOfThreads,
                                            int sizeOfQueue,
                                            long amount) throws InterruptedException {
-        startCircleTransfer(client, accs, numberOfThreads, sizeOfQueue, amount, 1);
+        return startCircleTransfer(client, accs, numberOfThreads, sizeOfQueue, amount, 1);
     }
-    public static void startCircleTransfer(AccounterSrv.Iface client, List<Long> accs,
+
+    // returns time(ms) per one committed transfer
+    public static double startCircleTransfer(AccounterSrv.Iface client, List<Long> accs,
                                            int numberOfThreads,
                                            int sizeOfQueue,
                                            long amount,
@@ -84,8 +86,9 @@ public class AccountUtils {
         if(!success){
             log.error("Waiting was terminated by timeout");
         }
-
-        log.warn("Transactions execution time from start: {}ms", (System.currentTimeMillis() - startTime));
+        long totalTime = System.currentTimeMillis() - startTime;
+        log.warn("Transactions execution time from start: {}ms", totalTime);
+        return ((double) totalTime) / (numberOfRounds * accs.size());
     }
 
     // transferId - unique id, used for PostingPlan id
