@@ -140,6 +140,14 @@ public class PostgresUtils {
         runAndOutToStdout(envs);
     }
 
+    public void vacuumFull(){
+        psql("vacuum full;");
+    }
+
+    public void vacuumAnalyze(){
+        psql("vacuum analyze;");
+    }
+
     public void psql(String sql){
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "psql-command");

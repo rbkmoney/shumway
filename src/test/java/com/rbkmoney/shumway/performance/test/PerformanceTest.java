@@ -28,7 +28,7 @@ public class PerformanceTest {
     private static final int NUMBER_OF_ACCS = 1000;
     private static final int AMOUNT = 1000;
 
-    private static final String DUMP_PATH = "shumway-1480327004.bak";
+    private static final String DUMP_PATH = "one_million.bak";
     private static PostgresUtils utils;
 
     @Autowired
@@ -39,7 +39,6 @@ public class PerformanceTest {
 
     @Autowired
     AccounterSrv.Iface client;
-
 
     @BeforeClass
     public static void beforeAllTestOnlyOnce() throws IOException {
@@ -53,26 +52,9 @@ public class PerformanceTest {
                 .showOutput(true)
                 .build();
 
-//        utils.restoreDump("one_million.bak");
 //        utils.restoreDump(DUMP_PATH);
-//        System.out.println("Dump restored.");
-//        utils.psql("VACUUM (VERBOSE, FULL);");
-//        System.out.println("VACUUM (VERBOSE, FULL);");
-//        utils.psql("VACUUM (VERBOSE, ANALYZE);");
-//        System.out.println("VACUUM (VERBOSE, ANALYZE);");
-//        utils.createSnapshot();
-//        utils.createDump("one_million.bak");
-    }
-
-//    @AfterClass
-    public static void afterAllTestOnlyOnce(){
-        utils.dropSnapshot();
-        utils.dropDb();
-    }
-
-//    @After
-    public void afterEveryTest(){
         utils.restoreSnapshot();
+        utils.vacuumAnalyze();
     }
 
     @Test
@@ -81,7 +63,7 @@ public class PerformanceTest {
         AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT);
         AccountUtils.startCircleCheck(accountDao, accIds, 0);
 
-//        utils.createDump("shumway1and" + NUMBER_OF_ACCS + ".bak");
+        utils.createDump("two_million.bak");
     }
 
 

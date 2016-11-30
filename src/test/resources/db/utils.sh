@@ -69,7 +69,7 @@ elif [ $TEMPLATE = "psql-command" ]
 then
     # execute psql
     psql \
-        -X \
+        -d $DB_NAME \
         -U $DB_SUPERUSER \
         -h $DB_HOST \
         -p $DB_PORT \
