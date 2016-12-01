@@ -8,7 +8,7 @@ import java.util.Objects;
  */
 public class PostingLog {
     private final long id;
-    private final String planId;
+    private final long planId;
     private final long batchId;
     private final long fromAccountId;
     private final long toAccountId;
@@ -18,7 +18,7 @@ public class PostingLog {
     private final String currSymCode;
     private final String description;
 
-    public PostingLog(long id, String planId, long batchId, long fromAccountId, long toAccountId, long amount, Instant creationTime, PostingOperation operation, String currSymCode, String description) {
+    public PostingLog(long id, long planId, long batchId, long fromAccountId, long toAccountId, long amount, Instant creationTime, PostingOperation operation, String currSymCode, String description) {
         this.id = id;
         this.planId = planId;
         this.batchId = batchId;
@@ -35,7 +35,7 @@ public class PostingLog {
         return id;
     }
 
-    public String getPlanId() {
+    public long getPlanId() {
         return planId;
     }
 

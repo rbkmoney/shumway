@@ -20,6 +20,6 @@ public interface AccountDao {
     List<Account> getShared(Collection<Long> ids) throws DaoException;
     AccountState getAccountState(long accountId) throws DaoException;
     Map<Long, AccountState> getAccountStates(List<Long> accountIds) throws DaoException;
-    Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException;
-    Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId, long batchId) throws DaoException;
+    Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, long planId) throws DaoException;
+    Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, long planId, long batchId) throws DaoException;
 }

@@ -58,11 +58,11 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId) {
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, long planId) {
         return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId));
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId, long batchId) {
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, long planId, long batchId) {
         return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId, batchId));
     }
 
@@ -82,8 +82,8 @@ public class AccountService {
     public void addAccountLogs(Collection<PostingLog> postingLogs) {
        List<AccountLog> accountLogs = new ArrayList<>(postingLogs.size() * 2);
        for (PostingLog postingLog: postingLogs) {
-           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), getAmount(postingLog, true), getOwnAmount(postingLog, true), getOwnAmountDelta(postingLog, true), true, false));
-           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getToAccountId(), postingLog.getOperation(), getAmount(postingLog, false), getOwnAmount(postingLog, false), getOwnAmountDelta(postingLog, false), false, false));
+           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), getOwnAmount(postingLog, true), getMinAmount(postingLog, true), getMaxAmount(postingLog, true), true, false));
+           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getToAccountId(), postingLog.getOperation(),  getOwnAmount(postingLog, false), getMinAmount(postingLog, true), getMaxAmount(postingLog, true), false, false));
        }
        accountDao.addLogs(accountLogs);
     }
@@ -101,17 +101,32 @@ public class AccountService {
         }
     }
 
-    private long getOwnAmountDelta(PostingLog postingLog, boolean isCredit) {
+
+    private long getMinAmount(PostingLog postingLog, boolean isCredit) {
         switch (postingLog.getOperation()) {
             case HOLD:
-                return getAmount(postingLog, isCredit);
+                return isCredit ? -postingLog.getAmount() : 0;
             case COMMIT:
             case ROLLBACK:
-                return -getAmount(postingLog, isCredit);
+                return isCredit ? postingLog.getAmount() : 0;
             default:
                 throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
         }
     }
+
+    private long getMaxAmount(PostingLog postingLog, boolean isCredit) {
+        boolean isDebit = !isCredit;
+        switch (postingLog.getOperation()) {
+            case HOLD:
+                return isDebit ? postingLog.getAmount() : 0;
+            case COMMIT:
+            case ROLLBACK:
+                return isDebit ? -postingLog.getAmount() : 0;
+            default:
+                throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
+        }
+    }
+
 /**
  * @param isCredit true - if it's the source in posting, false - if target (debit)
  * */

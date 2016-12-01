@@ -7,16 +7,22 @@ import java.util.Objects;
  * Created by vpankrashkin on 14.09.16.
  */
 public class PostingPlanLog {
+    private long id;
     private final String planId;
     private final Instant lastAccessTime;
     private final PostingOperation lastOperation;
     private final long lastBatchId;
 
-    public PostingPlanLog(String planId, Instant lastAccessTime, PostingOperation lastOperation, long lastBatchId) {
+    public PostingPlanLog(long id, String planId, Instant lastAccessTime, PostingOperation lastOperation, long lastBatchId) {
+        this.id = id;
         this.planId = planId;
         this.lastAccessTime = lastAccessTime;
         this.lastOperation = lastOperation;
         this.lastBatchId = lastBatchId;
+    }
+
+    public long getId() {
+        return id;
     }
 
     public String getPlanId() {
@@ -54,6 +60,7 @@ public class PostingPlanLog {
     @Override
     public String toString() {
         return "PostingPlanLog{" +
+                "id='" + id + '\'' +
                 "planId='" + planId + '\'' +
                 ", lastAccessTime=" + lastAccessTime +
                 ", lastOperation=" + lastOperation +
