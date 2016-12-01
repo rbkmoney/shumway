@@ -58,11 +58,11 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId) {
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, long planId) {
         return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId));
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId, long batchId) {
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, long planId, long batchId) {
         return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId, batchId));
     }
 

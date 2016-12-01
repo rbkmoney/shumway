@@ -17,7 +17,7 @@ OIDS=FALSE
 CREATE TABLE shm.account_log
 (
   id bigserial NOT NULL,
-  plan_id character varying(64) NOT NULL,
+  plan_id bigint NOT NULL,
   batch_id bigint NOT NULL,
   account_id bigint NOT NULL,
   operation shm.posting_operation_type NOT NULL,
@@ -33,20 +33,14 @@ WITH (
 OIDS=FALSE
 );
 
-CREATE INDEX account_log_plan_id_idx
-  ON shm.account_log
-  USING btree
-  (account_id, plan_id COLLATE pg_catalog."default");
+create index account_log_account_id_idx on shm.account_log using btree (account_id);
+create index acc_test_idx on shm.account_log using btree (plan_id, batch_id, account_id);
 
-CREATE INDEX account_log_account_id_operation_idx
-  ON shm.account_log
-  USING btree
-  (account_id, operation);
 
 CREATE TABLE shm.posting_log
 (
   id bigserial NOT NULL,
-  plan_id character varying(64) NOT NULL,
+  plan_id bigint NOT NULL,
   batch_id bigint NOT NULL,
   from_account_id bigint NOT NULL,
   to_account_id bigint NOT NULL,
@@ -64,16 +58,22 @@ OIDS=FALSE
 CREATE INDEX posting_log_plan_id_idx
   ON shm.posting_log
   USING btree
-  (plan_id COLLATE pg_catalog."default", batch_id);
+  (plan_id, batch_id);
 
 CREATE TABLE shm.plan_log
 (
-  plan_id character varying(64) NOT NULL,
+  id bigserial NOT NULL,
+  plan_id character varying(64) UNIQUE NOT NULL,
   last_batch_id bigint NOT NULL,
   last_operation shm.posting_operation_type NOT NULL,
   last_access_time timestamp without time zone NOT NULL,
-  CONSTRAINT plan_log_pkey PRIMARY KEY (plan_id)
+  CONSTRAINT plan_log_pkey PRIMARY KEY (id)
 )
 WITH (
 OIDS=FALSE
 );
+
+CREATE INDEX plan_log_plan_id_id_idx
+  ON shm.plan_log
+  USING btree
+  (plan_id COLLATE pg_catalog."default", id);

@@ -36,8 +36,8 @@ public interface PostingPlanDao {
     /**
      * @return Posting log records containing referred posting operation
      * */
-    Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) throws DaoException;
-    Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException;
+    Map<Long, List<PostingLog>> getPostingLogs(long planId, PostingOperation operation) throws DaoException;
+    Map<Long, List<PostingLog>> getPostingLogs(long planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException;
 
 
     /**

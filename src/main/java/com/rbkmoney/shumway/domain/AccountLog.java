@@ -9,7 +9,7 @@ import java.util.Objects;
 public class AccountLog {
     private final long id;
     private final long batchId;
-    private final String planId;
+    private final long planId;
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
@@ -19,7 +19,7 @@ public class AccountLog {
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long ownAmountDelta, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, long planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long ownAmountDelta, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
@@ -41,7 +41,7 @@ public class AccountLog {
         return batchId;
     }
 
-    public String getPlanId() {
+    public long getPlanId() {
         return planId;
     }
 

@@ -56,8 +56,10 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     protected PostingPlanLog doSafeOperation(PostingPlan postingPlan, PostingOperation operation) throws TException {
         Map<Long, com.rbkmoney.shumway.domain.Account> affectedDomainAccounts;
+        TempWrapper tempWrapper;
         try {
-            affectedDomainAccounts = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
+            tempWrapper = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
+            affectedDomainAccounts = tempWrapper.getMap();
         } catch (Exception e) {
             log.error("Request phase 1 processing error: ", e);
             if (e instanceof TransactionException) {
@@ -71,8 +73,8 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
         try {
             Map<Long, StatefulAccount> affectedDomainStatefulAccounts = (isFinalOperation(operation)
-                    ? accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId())
-            : accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId(), postingPlan.getBatchList().get(0).getId()));
+                    ? accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), tempWrapper.getCurrDomainPlanLog().getId())
+            : accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(),  tempWrapper.getCurrDomainPlanLog().getId(), postingPlan.getBatchList().get(0).getId()));
 
             Map<Long, Account> affectedProtocolAccounts = affectedDomainStatefulAccounts.values()
                     .stream()
@@ -89,7 +91,25 @@ public class AccounterHandler implements AccounterSrv.Iface {
         }
     }
 
-    private Map<Long, com.rbkmoney.shumway.domain.Account> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
+    private static class  TempWrapper {
+        Map<Long, com.rbkmoney.shumway.domain.Account> map;
+        com.rbkmoney.shumway.domain.PostingPlanLog currDomainPlanLog;
+
+        public TempWrapper(Map<Long, com.rbkmoney.shumway.domain.Account> map, com.rbkmoney.shumway.domain.PostingPlanLog currDomainPlanLog) {
+            this.map = map;
+            this.currDomainPlanLog = currDomainPlanLog;
+        }
+
+        public Map<Long, com.rbkmoney.shumway.domain.Account> getMap() {
+            return map;
+        }
+
+        public com.rbkmoney.shumway.domain.PostingPlanLog getCurrDomainPlanLog() {
+            return currDomainPlanLog;
+        }
+    }
+
+    private TempWrapper safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
         boolean finalOp = isFinalOperation(operation);
         try {
             log.info("New {} request, received: {}", operation, postingPlan);
@@ -108,7 +128,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 throw validatePlanNotFixedResult(receivedDomainPlanLog, oldDomainPlanLog, !finalOp);
             } else {
 
-                Map<Long, List<PostingLog>> savedDomainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getPlanId(), prevOperation);
+                Map<Long, List<PostingLog>> savedDomainPostingLogs = planService.getPostingLogs(currDomainPlanLog.getId(), prevOperation);
 
                 AccounterValidator.validatePlanBatches(postingPlan, savedDomainPostingLogs, finalOp);
 
@@ -129,13 +149,14 @@ public class AccounterHandler implements AccounterSrv.Iface {
                             .stream()
                             .flatMap(batch -> batch.getPostings().stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currDomainPlanLog)) )
                             .collect(Collectors.toList());
+
                     log.info("Adding posting logs");
                     planService.addPostingLogs(newDomainPostingLogs);
                     log.info("Adding account logs");
                     accountService.addAccountLogs(newDomainPostingLogs);
                 }
 
-                return domainAccountMap;
+                return new TempWrapper(domainAccountMap, currDomainPlanLog);
             }
         } catch (TException e) {
             throw new RuntimeException(e);
@@ -159,7 +180,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
         }
         Map<Long, List<PostingLog>> domainBatchLogs;
         try {
-            domainBatchLogs = planService.getPostingLogs(planId, PostingOperation.HOLD);
+            domainBatchLogs = planService.getPostingLogs(domainPostingPlan.getId(), PostingOperation.HOLD);
         } catch (Exception e) {
             log.error("Failed to get posting logs", e);
             throw new TException(e);
@@ -207,5 +228,4 @@ public class AccounterHandler implements AccounterSrv.Iface {
     public static boolean isFinalOperation(PostingOperation operation) {
         return operation != PostingOperation.HOLD;
     }
-
 }

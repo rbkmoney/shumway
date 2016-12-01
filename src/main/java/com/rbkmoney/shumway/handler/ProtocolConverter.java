@@ -31,11 +31,11 @@ public class ProtocolConverter {
     }
 
     public static PostingLog convertToDomainPosting(Posting protocolPosting,  com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) {
-        return new PostingLog(0, currentDomainPlanLog.getPlanId(), currentDomainPlanLog.getLastBatchId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
+        return new PostingLog(0, currentDomainPlanLog.getId(), currentDomainPlanLog.getLastBatchId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
     }
 
     public static PostingPlanLog convertToDomainPlan(PostingPlan protocolPostingPlan, PostingOperation domainPostingOperation) {
-        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, protocolPostingPlan.getBatchList().get(0).getId());
+        PostingPlanLog domainPlanLog = new PostingPlanLog(0, protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, protocolPostingPlan.getBatchList().get(0).getId());
         return domainPlanLog;
     }
 

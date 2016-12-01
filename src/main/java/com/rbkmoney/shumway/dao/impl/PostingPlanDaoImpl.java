@@ -10,7 +10,6 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcDaoSupport;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
 import java.sql.ResultSet;
@@ -23,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.joining;
 import static org.springframework.util.StringUtils.collectionToCommaDelimitedString;
 
 /**
@@ -92,7 +90,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
     }
 
     @Override
-    public Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) throws DaoException {
+    public Map<Long, List<PostingLog>> getPostingLogs(long planId, PostingOperation operation) throws DaoException {
         final String sql = "select * from shm.posting_log where plan_id = :plan_id and operation = :operation::shm.posting_operation_type";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("plan_id", planId);
@@ -105,7 +103,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
     }
 
     @Override
-    public Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException {
+    public Map<Long, List<PostingLog>> getPostingLogs(long planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException {
         if (batchIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
@@ -126,7 +124,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         final String sql = "INSERT INTO shm.posting_log(plan_id, batch_id, from_account_id, to_account_id, creation_time, amount, curr_sym_code, operation, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, postingLogs, BATCH_SIZE,
                 (ps, argument) -> {
-                    ps.setString(1, argument.getPlanId());
+                    ps.setLong(1, argument.getPlanId());
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getFromAccountId());
                     ps.setLong(4, argument.getToAccountId());
@@ -169,11 +167,12 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
         @Override
         public PostingPlanLog mapRow(ResultSet rs, int rowNum) throws SQLException {
+            long id = rs.getLong("id");
             String planId = rs.getString("plan_id");
             Instant lastAccessTime = rs.getTimestamp("last_access_time").toInstant();
             PostingOperation lastOperation = PostingOperation.getValueByKey(rs.getString("last_operation"));
             long lastBatchId = rs.getLong("last_batch_id");
-            return new PostingPlanLog(planId, lastAccessTime, lastOperation, lastBatchId);
+            return new PostingPlanLog(id, planId, lastAccessTime, lastOperation, lastBatchId);
         }
     }
 
@@ -182,7 +181,7 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         @Override
         public PostingLog mapRow(ResultSet rs, int rowNum) throws SQLException {
             long id = rs.getLong("id");
-            String planId = rs.getString("plan_id");
+            long planId = rs.getLong("plan_id");
             long batchId = rs.getLong("batch_id");
             long fromAccountId = rs.getLong("from_account_id");
             long toAccountId = rs.getLong("to_account_id");

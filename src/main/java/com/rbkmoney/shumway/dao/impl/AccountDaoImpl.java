@@ -61,7 +61,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, amount, own_amount, own_amount_delta, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, BATCH_SIZE,
                 (ps, argument) -> {
-                    ps.setString(1, argument.getPlanId());
+                    ps.setLong(1, argument.getPlanId());
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getAccountId());
                     ps.setString(4, argument.getOperation().getKey());
@@ -186,7 +186,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, long planId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
@@ -218,7 +218,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId, long batchId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, long planId, long batchId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {

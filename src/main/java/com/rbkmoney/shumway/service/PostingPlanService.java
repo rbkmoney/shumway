@@ -7,7 +7,6 @@ import com.rbkmoney.shumway.domain.PostingOperation;
 import com.rbkmoney.shumway.domain.PostingPlanLog;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -21,11 +20,11 @@ public class PostingPlanService {
         this.postingPlanDao = postingPlanDao;
     }
 
-    public Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) {
+    public Map<Long, List<PostingLog>> getPostingLogs(long planId, PostingOperation operation) {
         return postingPlanDao.getPostingLogs(planId, operation);
     }
 
-    public Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) {
+    public Map<Long, List<PostingLog>> getPostingLogs(long planId, Collection<Long> batchIds, PostingOperation operation) {
         return postingPlanDao.getPostingLogs(planId, batchIds, operation);
     }
 
