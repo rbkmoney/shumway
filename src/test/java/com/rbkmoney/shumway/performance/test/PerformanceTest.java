@@ -85,6 +85,17 @@ public class PerformanceTest {
         test();
     }
 
+    @Test
+    public void test4() throws Exception {
+        utils.restoreSnapshot();
+        utils.psqlCommit("drop index shm.account_log_plan_id_idx;");
+        utils.psqlCommit("drop index shm.account_log_account_id_operation_idx;");
+        utils.psqlCommit("create index account_log_account_id_idx on shm.account_log using btree (account_id);");
+        utils.psqlCommit("create index acc_test_idx on shm.account_log using btree (plan_id, batch_id, account_id);");
+        utils.vacuumAnalyze();
+        test();
+    }
+
     public void test() throws InterruptedException {
         List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
         int numberOfRounds = 100;
