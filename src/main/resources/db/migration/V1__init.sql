@@ -33,9 +33,7 @@ WITH (
 OIDS=FALSE
 );
 
-create index account_log_account_id_idx on shm.account_log using btree (account_id);
-create index acc_test_idx on shm.account_log using btree (plan_id, batch_id, account_id);
-
+create index account_log_apb_idx on shm.account_log using btree (account_id, plan_id, batch_id);
 
 CREATE TABLE shm.posting_log
 (
@@ -62,18 +60,13 @@ CREATE INDEX posting_log_plan_id_idx
 
 CREATE TABLE shm.plan_log
 (
-  id bigserial NOT NULL,
+  id bigserial UNIQUE NOT NULL,
   plan_id character varying(64) UNIQUE NOT NULL,
   last_batch_id bigint NOT NULL,
   last_operation shm.posting_operation_type NOT NULL,
   last_access_time timestamp without time zone NOT NULL,
-  CONSTRAINT plan_log_pkey PRIMARY KEY (id)
+  CONSTRAINT plan_log_pkey PRIMARY KEY (plan_id)
 )
 WITH (
 OIDS=FALSE
 );
-
-CREATE INDEX plan_log_plan_id_id_idx
-  ON shm.plan_log
-  USING btree
-  (plan_id COLLATE pg_catalog."default", id);
