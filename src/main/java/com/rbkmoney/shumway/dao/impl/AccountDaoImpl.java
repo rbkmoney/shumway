@@ -222,7 +222,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
                     "from shm.account_log \n" +
                     "where \n" +
                     "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
-                    "  and plan_id < :plan_id or (plan_id = :plan_id and batch_id <= :batch_id) \n" +
+                    "  and (plan_id < :plan_id or (plan_id = :plan_id and batch_id <= :batch_id)) \n" +
                     "group by account_id\n";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
