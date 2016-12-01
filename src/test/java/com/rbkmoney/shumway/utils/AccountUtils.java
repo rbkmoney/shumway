@@ -27,7 +27,7 @@ public class AccountUtils {
         long startTime = System.currentTimeMillis();
         Account domainPrototype =  new Account(0, Instant.now(), "RUB", "Test");
         List<Long> ids = supportAccountDao.add(domainPrototype, N);
-        log.warn("CreateAccs({}) execution time: {}ms", N, (System.currentTimeMillis() - startTime));
+        log.info("CreateAccs({}) execution time: {}ms", N, (System.currentTimeMillis() - startTime));
         return ids;
     }
 
@@ -39,7 +39,7 @@ public class AccountUtils {
             assertEquals("Acc ID: " + acc.getId(), expectedAmount, acc.getMaxAvailableAmount());
             assertEquals("Acc ID: " + acc.getId(), expectedAmount, acc.getMinAvailableAmount());
         }
-        log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
+        log.info("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
     }
 
     public static void startCircleCheck(AccountDao accountDao, List<Long> accs, long expectedAmount){
@@ -51,7 +51,7 @@ public class AccountUtils {
             assertEquals("Acc ID: " + e.getKey(), expectedAmount, e.getValue().getMaxAvailableAmount());
             assertEquals("Acc ID: " + e.getKey(), expectedAmount, e.getValue().getMinAvailableAmount());
         }
-        log.warn("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
+        log.info("Check amounts on accs: {}ms", (System.currentTimeMillis() - startTime));
     }
 
     public static double startCircleTransfer(AccounterSrv.Iface client, List<Long> accs,
@@ -79,7 +79,7 @@ public class AccountUtils {
                 executorService.submit(() -> makeTransfer(client, from, to, amount, transferId));
             }
         }
-        log.warn("All transactions submitted.");
+        log.info("All transactions submitted.");
 
         executorService.shutdown();
         boolean success = executorService.awaitTermination(sizeOfQueue, TimeUnit.SECONDS);
@@ -87,7 +87,7 @@ public class AccountUtils {
             log.error("Waiting was terminated by timeout");
         }
         long totalTime = System.currentTimeMillis() - startTime;
-        log.warn("Transactions execution time from start: {}ms", totalTime);
+        log.info("Transactions execution time from start: {}ms", totalTime);
         return ((double) totalTime) / (numberOfRounds * accs.size());
     }
 
