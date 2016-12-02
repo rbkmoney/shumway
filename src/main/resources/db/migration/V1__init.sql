@@ -21,9 +21,9 @@ CREATE TABLE shm.account_log
   batch_id bigint NOT NULL,
   account_id bigint NOT NULL,
   operation shm.posting_operation_type NOT NULL,
-  amount bigint NOT NULL,
   own_amount bigint NOT NULL,
-  own_amount_delta bigint NOT NULL,
+  min_amount bigint NOT NULL,
+  max_amount bigint NOT NULL,
   creation_time timestamp without time zone NOT NULL,
   credit BOOLEAN NOT NULL,
   merged BOOLEAN NOT NULL DEFAULT FALSE,
@@ -33,15 +33,15 @@ WITH (
 OIDS=FALSE
 );
 
-CREATE INDEX account_log_plan_id_idx
+CREATE INDEX account_log_acc_id
   ON shm.account_log
   USING btree
-  (account_id, plan_id COLLATE pg_catalog."default");
+  (account_id);
 
-CREATE INDEX account_log_account_id_operation_idx
+CREATE INDEX account_log_pb_idx
   ON shm.account_log
   USING btree
-  (account_id, operation);
+  (plan_id, batch_id);
 
 CREATE TABLE shm.posting_log
 (

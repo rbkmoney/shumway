@@ -7,17 +7,17 @@ import java.util.Objects;
  */
 public class AccountState {
     private final long ownAmount;
-    private final long maxAvailableAmount;
     private final long minAvailableAmount;
+    private final long maxAvailableAmount;
 
     public AccountState() {
         this(0, 0, 0);
     }
 
-    public AccountState(long ownAmount, long maxAvailableAmount, long minAvailableAmount) {
+    public AccountState(long ownAmount, long minAvailableAmount, long maxAvailableAmount) {
         this.ownAmount = ownAmount;
-        this.maxAvailableAmount = maxAvailableAmount;
         this.minAvailableAmount = minAvailableAmount;
+        this.maxAvailableAmount = maxAvailableAmount;
     }
 
     public long getOwnAmount() {

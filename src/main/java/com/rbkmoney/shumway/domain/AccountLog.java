@@ -13,22 +13,22 @@ public class AccountLog {
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
-    private final long amount;
     private final long ownAmount;
-    private final long ownAmountDelta;
+    private final long minAmount;
+    private final long maxAmount;
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long ownAmountDelta, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAmount, long minAmount, long maxAmount, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
         this.creationTime = creationTime;
         this.accountId = accountId;
         this.operation = operation;
-        this.amount = amount;
         this.ownAmount = ownAmount;
-        this.ownAmountDelta = ownAmountDelta;
+        this.minAmount = minAmount;
+        this.maxAmount = maxAmount;
         this.credit = credit;
         this.merged = merged;
     }
@@ -57,16 +57,17 @@ public class AccountLog {
         return operation;
     }
 
-    public long getAmount() {
-        return amount;
-    }
-
-    public long getOwnAmountDelta() {
-        return ownAmountDelta;
-    }
 
     public long getOwnAmount() {
         return ownAmount;
+    }
+
+    public long getMinAmount() {
+        return minAmount;
+    }
+
+    public long getMaxAmount() {
+        return maxAmount;
     }
 
     public boolean isCredit() {
@@ -85,9 +86,9 @@ public class AccountLog {
         return id == that.id &&
                 batchId == that.batchId &&
                 accountId == that.accountId &&
-                amount == that.amount &&
                 ownAmount == that.ownAmount &&
-                ownAmountDelta == that.ownAmountDelta &&
+                minAmount == that.minAmount &&
+                maxAmount == that.maxAmount &&
                 credit == that.credit &&
                 merged == that.merged &&
                 Objects.equals(planId, that.planId) &&
@@ -97,7 +98,7 @@ public class AccountLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, amount, ownAmount, ownAmountDelta, credit, merged);
+        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, ownAmount, minAmount, maxAmount, credit, merged);
     }
 
     @Override
@@ -109,9 +110,9 @@ public class AccountLog {
                 ", creationTime=" + creationTime +
                 ", accountId=" + accountId +
                 ", operation=" + operation +
-                ", amount=" + amount +
                 ", ownAmount=" + ownAmount +
-                ", ownAmountDelta=" + ownAmountDelta +
+                ", minAmount=" + minAmount +
+                ", maxAmount=" + maxAmount +
                 ", credit=" + credit +
                 ", merged=" + merged +
                 '}';

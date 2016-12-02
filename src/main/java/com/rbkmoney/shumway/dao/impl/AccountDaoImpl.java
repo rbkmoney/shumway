@@ -58,16 +58,16 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public void addLogs(List<AccountLog> logs) throws DaoException {
-        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, amount, own_amount, own_amount_delta, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
+        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, own_amount, min_amount, max_amount, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, BATCH_SIZE,
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getAccountId());
                     ps.setString(4, argument.getOperation().getKey());
-                    ps.setLong(5, argument.getAmount());
-                    ps.setLong(6, argument.getOwnAmount());
-                    ps.setLong(7, argument.getOwnAmountDelta());
+                    ps.setLong(5, argument.getOwnAmount());
+                    ps.setLong(6, argument.getMinAmount());
+                    ps.setLong(7, argument.getMaxAmount());
                     ps.setTimestamp(8, Timestamp.from(argument.getCreationTime()));
                     ps.setBoolean(9, argument.isCredit());
                     ps.setBoolean(10, argument.isMerged());
@@ -144,22 +144,13 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     @Override
     public AccountState getAccountState(long accountId) throws DaoException {
         final String sql = "select \n" +
-                "  t.account_id, \n" +
-                "  sum(t.own_sum) as total_own_sum, \n" +
-                "  sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, \n" +
-                "  sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum \n" +
-                "from (\n" +
-                "  select \n" +
-                "    account_id, \n" +
-                "    plan_id, \n" +
-                "    sum(own_amount) as own_sum,  \n" +
-                "    sum(own_amount_delta) as own_detla_sum \n" +
-                "  from shm.account_log \n" +
-                "  where \n" +
-                "    account_id = :account_id  \n" +
-                "  group by account_id, plan_id\n" +
-                ") as t \n" +
-                "GROUP BY t.account_id";
+                "  account_id, \n" +
+                "  sum(own_amount) as total_own_amount,  \n" +
+                "  sum(min_amount) as total_min_amount, \n" +
+                "  sum(max_amount) as total_max_amount\n" +
+                "from shm.account_log \n" +
+                "where account_id = :account_id  \n" +
+                "group by account_id";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("account_id", accountId);
         try {
@@ -176,7 +167,14 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
-            final String sql = "select t.account_id, sum(t.own_sum) as total_own_sum, sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum from (select account_id, plan_id, sum(own_amount) as own_sum, sum(own_amount_delta) as own_detla_sum from shm.account_log where account_id in ("+ StringUtils.collectionToDelimitedString(accountIds, ",")+")  group by account_id, plan_id) as t GROUP BY t.account_id";
+            final String sql = "select \n" +
+                    "  account_id, \n" +
+                    "  sum(own_amount) as total_own_amount,  \n" +
+                    "  sum(min_amount) as total_min_amount, \n" +
+                    "  sum(max_amount) as total_max_amount\n" +
+                    "from shm.account_log \n" +
+                    "where account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ")\n" +
+                    "group by account_id";
             try {
                return fillAbsentValues(accountIds, getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -192,23 +190,15 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         } else {
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             final String sql = "select \n" +
-                    "  t.account_id, \n" +
-                    "  sum(t.own_sum) as total_own_sum, \n" +
-                    "  sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, \n" +
-                    "  sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum \n" +
-                    "from (\n" +
-                    "  select \n" +
-                    "    account_id, \n" +
-                    "    plan_id, \n" +
-                    "    sum(own_amount) as own_sum, \n" +
-                    "    sum(own_amount_delta) as own_detla_sum \n" +
-                    "  from shm.account_log \n" +
-                    "  where \n" +
-                    "    account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
-                    "    and id <= (select max(id) from shm.account_log where plan_id = :plan_id) \n" +
-                    "  group by account_id, plan_id\n" +
-                    "  ) as t \n" +
-                    "GROUP BY t.account_id";
+                    "  account_id, \n" +
+                    "  sum(own_amount) as total_own_amount,  \n" +
+                    "  sum(min_amount) as total_min_amount, \n" +
+                    "  sum(max_amount) as total_max_amount\n" +
+                    "from shm.account_log \n" +
+                    "where \n" +
+                    "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
+                    "  and id <= (select max(id) from shm.account_log where plan_id = :plan_id) \n" +
+                    "group by account_id\n";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -225,23 +215,15 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             params.addValue("batch_id", batchId);
             final String sql = "select \n" +
-                    "  t.account_id, \n" +
-                    "  sum(t.own_sum) as total_own_sum, \n" +
-                    "  sum(CASE WHEN t.own_detla_sum >= 0 THEN t.own_detla_sum ELSE 0 END) as max_delta_sum, \n" +
-                    "  sum(CASE WHEN t.own_detla_sum < 0 THEN t.own_detla_sum ELSE 0 END) as min_delta_sum \n" +
-                    "from (\n" +
-                    "  select \n" +
-                    "    account_id, \n" +
-                    "    plan_id, \n" +
-                    "    sum(own_amount) as own_sum, \n" +
-                    "    sum(own_amount_delta) as own_detla_sum \n" +
-                    "  from shm.account_log \n" +
-                    "  where \n" +
-                    "    account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
-                    "    and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) \n" +
-                    "  group by account_id, plan_id\n" +
-                    ") as t \n" +
-                    "GROUP BY t.account_id";
+                    "  account_id, \n" +
+                    "  sum(own_amount) as total_own_amount,  \n" +
+                    "  sum(min_amount) as total_min_amount, \n" +
+                    "  sum(max_amount) as total_max_amount\n" +
+                    "from shm.account_log \n" +
+                    "where \n" +
+                    "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
+                    "  and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) \n" +
+                    "group by account_id\n";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -259,10 +241,10 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         @Override
         public Pair<Long, AccountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
             long accountId = rs.getLong("account_id");
-            long ownAmount = rs.getLong("total_own_sum");
-            long maxDeltaSum = rs.getLong("max_delta_sum");
-            long minDeltaSum = rs.getLong("min_delta_sum");
-            AccountState accountState = new AccountState(ownAmount, ownAmount + maxDeltaSum, ownAmount + minDeltaSum);
+            long ownAmount = rs.getLong("total_own_amount");
+            long minAvailableAmount = rs.getLong("total_min_amount") + ownAmount;
+            long maxAvailableAmount = rs.getLong("total_max_amount") + ownAmount;
+            AccountState accountState = new AccountState(ownAmount, minAvailableAmount, maxAvailableAmount);
             return new Pair<>(accountId, accountState);
         }
     }
