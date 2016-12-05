@@ -58,7 +58,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public void addLogs(List<AccountLog> logs) throws DaoException {
-        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, own_amount, min_amount, max_amount, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
+        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, own_amount_diff, neg_diff, pos_diff, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, BATCH_SIZE,
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
@@ -145,9 +145,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     public AccountState getAccountState(long accountId) throws DaoException {
         final String sql = "select \n" +
                 "  account_id, \n" +
-                "  sum(own_amount) as total_own_amount,  \n" +
-                "  sum(min_amount) as total_min_amount, \n" +
-                "  sum(max_amount) as total_max_amount\n" +
+                "  sum(own_amount_diff) as own_amount,  \n" +
+                "  sum(neg_diff) as neg_total_diff, \n" +
+                "  sum(pos_diff) as pos_total_diff\n" +
                 "from shm.account_log \n" +
                 "where account_id = :account_id  \n" +
                 "group by account_id";
@@ -169,9 +169,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         } else {
             final String sql = "select \n" +
                     "  account_id, \n" +
-                    "  sum(own_amount) as total_own_amount,  \n" +
-                    "  sum(min_amount) as total_min_amount, \n" +
-                    "  sum(max_amount) as total_max_amount\n" +
+                    "  sum(own_amount_diff) as own_amount,  \n" +
+                    "  sum(neg_diff) as neg_total_diff, \n" +
+                    "  sum(pos_diff) as pos_total_diff\n" +
                     "from shm.account_log \n" +
                     "where account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ")\n" +
                     "group by account_id";
@@ -191,9 +191,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             final String sql = "select \n" +
                     "  account_id, \n" +
-                    "  sum(own_amount) as total_own_amount,  \n" +
-                    "  sum(min_amount) as total_min_amount, \n" +
-                    "  sum(max_amount) as total_max_amount\n" +
+                    "  sum(own_amount_diff) as own_amount,  \n" +
+                    "  sum(neg_diff) as neg_total_diff, \n" +
+                    "  sum(pos_diff) as pos_total_diff\n" +
                     "from shm.account_log \n" +
                     "where \n" +
                     "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
@@ -216,9 +216,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             params.addValue("batch_id", batchId);
             final String sql = "select \n" +
                     "  account_id, \n" +
-                    "  sum(own_amount) as total_own_amount,  \n" +
-                    "  sum(min_amount) as total_min_amount, \n" +
-                    "  sum(max_amount) as total_max_amount\n" +
+                    "  sum(own_amount_diff) as own_amount,  \n" +
+                    "  sum(neg_diff) as neg_total_diff, \n" +
+                    "  sum(pos_diff) as pos_total_diff\n" +
                     "from shm.account_log \n" +
                     "where \n" +
                     "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") \n" +
@@ -241,9 +241,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         @Override
         public Pair<Long, AccountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
             long accountId = rs.getLong("account_id");
-            long ownAmount = rs.getLong("total_own_amount");
-            long minAvailableAmount = rs.getLong("total_min_amount") + ownAmount;
-            long maxAvailableAmount = rs.getLong("total_max_amount") + ownAmount;
+            long ownAmount = rs.getLong("own_amount");
+            long minAvailableAmount = rs.getLong("neg_total_diff") + ownAmount;
+            long maxAvailableAmount = rs.getLong("pos_total_diff") + ownAmount;
             AccountState accountState = new AccountState(ownAmount, minAvailableAmount, maxAvailableAmount);
             return new Pair<>(accountId, accountState);
         }
