@@ -41,7 +41,7 @@ CREATE INDEX account_log_acc_id
 CREATE INDEX account_log_pb_idx
   ON shm.account_log
   USING btree
-  (plan_id, batch_id);
+  (plan_id COLLATE pg_catalog."default", batch_id ,id);
 
 CREATE TABLE shm.posting_log
 (
