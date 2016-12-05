@@ -11,10 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 
 import static org.junit.Assert.assertEquals;
@@ -91,10 +88,51 @@ public class AccountUtils {
         return ((double) totalTime) / (numberOfRounds * accs.size());
     }
 
+    // returns time(ms) per one committed transfer (p->r->m->p)
+    public static double emulateRealTransfer(AccounterSrv.Iface client,  List<Long> providerAccs, List<Long> rbkMoneyAccs, List<Long> merchantAccs,
+                                             int numberOfRounds,
+                                             int numberOfThreads,
+                                             int sizeOfQueue) throws InterruptedException {
+        final ExecutorService executorService = newFixedThreadPoolWithQueueSize(numberOfThreads, sizeOfQueue);
+        long startTime = System.currentTimeMillis();
+
+        final Random random = new Random();
+
+        for(int j=0; j < numberOfRounds; j++) {
+            final long provider = providerAccs.get(random.nextInt(providerAccs.size()));
+            final long rbkMoney = rbkMoneyAccs.get(random.nextInt(rbkMoneyAccs.size()));
+            final long merchant = merchantAccs.get(random.nextInt(merchantAccs.size()));
+
+            final int transferId = j;
+
+                executorService.submit(() -> makeRealTransfer(client, provider, merchant, rbkMoney, transferId));
+        }
+        log.info("All transactions submitted.");
+
+        executorService.shutdown();
+        boolean success = executorService.awaitTermination(sizeOfQueue, TimeUnit.SECONDS);
+        if(!success){
+            log.error("Waiting was terminated by timeout");
+        }
+        long totalTime = System.currentTimeMillis() - startTime;
+        log.info("Transfer (p->r->m->p) execution time from start: {}ms", totalTime);
+        return ((double) totalTime) / numberOfRounds;
+    }
+
     // transferId - unique id, used for PostingPlan id
     public static void makeTransfer(AccounterSrv.Iface client, long from, long to, long amount, int transferId){
         final String ppid = System.currentTimeMillis() + "_" + transferId;
         final PostingPlan postingPlan = createNewPostingPlan(ppid, from, to, amount);
+        makeTransfer(client, postingPlan);
+    }
+
+    public static void makeRealTransfer(AccounterSrv.Iface client, long provider, long merchant, long rbkMoney, int transferId){
+        final String ppid = System.currentTimeMillis() + "_" + transferId;
+        Posting p1 = new Posting(provider, rbkMoney, 100, "RUB", "Desc");
+        Posting p2 = new Posting(rbkMoney, merchant, 95, "RUB", "Desc");
+        Posting p3 = new Posting(merchant, provider, 1, "RUB", "Desc");
+        PostingPlan postingPlan = new PostingPlan(ppid, Arrays.asList(new PostingBatch(1, Arrays.asList(p1, p2, p3))));
+
         makeTransfer(client, postingPlan);
     }
 
