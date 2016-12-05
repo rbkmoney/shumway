@@ -65,9 +65,9 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getAccountId());
                     ps.setString(4, argument.getOperation().getKey());
-                    ps.setLong(5, argument.getOwnAmount());
-                    ps.setLong(6, argument.getMinAmount());
-                    ps.setLong(7, argument.getMaxAmount());
+                    ps.setLong(5, argument.getOwnAmountDiff());
+                    ps.setLong(6, argument.getNegDiff());
+                    ps.setLong(7, argument.getPosDiff());
                     ps.setTimestamp(8, Timestamp.from(argument.getCreationTime()));
                     ps.setBoolean(9, argument.isCredit());
                     ps.setBoolean(10, argument.isMerged());
