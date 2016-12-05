@@ -36,7 +36,7 @@ OIDS=FALSE
 CREATE INDEX account_log_acc_id
   ON shm.account_log
   USING btree
-  (account_id);
+  (account_id, id, own_amount_diff, neg_diff, pos_diff);
 
 CREATE INDEX account_log_pb_idx
   ON shm.account_log
