@@ -83,65 +83,65 @@ public class AccountService {
     public void holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs) {
         final List<AccountLog> accountLogs = new ArrayList<>();
 
-        long neg; // negativeDiff
-        long pos; // positiveDiff
+        long negDiff;
+        long posDiff;
 
-        final Map<Long, Long> dnMap = computeDiffs(newPostingLogs);
-        final Map<Long, Long> dsMap = computeDiffs(savedPostingLogs);
-        final Map<Long, Long> dnsMap = mergeDiffs(dnMap, dsMap);
+        final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
+        final Map<Long, Long> savedDiffsMap = computeDiffs(savedPostingLogs);
+        final Map<Long, Long> mergedDiffsMap = mergeDiffs(newDiffsMap, savedDiffsMap);
 
-        for(Long accId: dnMap.keySet()){
-            boolean firstHoldForThisAcc = !dsMap.containsKey(accId);
-            final long dn = dnMap.get(accId);
+        for(Long accId: newDiffsMap.keySet()){
+            boolean firstHoldForThisAcc = !savedDiffsMap.containsKey(accId);
+            final long newDiff = newDiffsMap.get(accId);
 
             if(firstHoldForThisAcc){
-                neg = dn < 0 ? dn : 0;
-                pos = dn > 0 ? dn : 0;
+                negDiff = newDiff < 0 ? newDiff : 0;
+                posDiff = newDiff > 0 ? newDiff : 0;
 
             }else{
                 // second+ hold
-                final long ds = dsMap.get(accId);
-                final long dns = dnsMap.get(accId);
+                final long savedDiff = savedDiffsMap.get(accId);
+                final long mergedDiff = mergedDiffsMap.get(accId);
 
-                boolean signChanged = (ds < 0 && dns > 0) ||  (ds > 0 && dns < 0);
+                boolean signChanged = (savedDiff < 0 && mergedDiff > 0) ||  (savedDiff > 0 && mergedDiff < 0);
                 if(signChanged){
-                    if(ds > 0){
-                        neg = dns;
-                        pos = -ds;
+                    if(savedDiff > 0){
+                        negDiff = mergedDiff;
+                        posDiff = -savedDiff;
                     }else{
-                        neg = -ds;
-                        pos = dns;
+                        negDiff = -savedDiff;
+                        posDiff = mergedDiff;
                     }
                 }else{
-                    if(dns < 0){
-                        neg = dn;
-                        pos = 0;
+                    if(mergedDiff < 0){
+                        negDiff = newDiff;
+                        posDiff = 0;
                     }else{
-                        neg = 0;
-                        pos = dn;
+                        negDiff = 0;
+                        posDiff = newDiff;
                     }
                 }
 
             }
-            accountLogs.add(new AccountLog(0, pb.getId(), ppId, Instant.now(), accId, PostingOperation.HOLD, 0, neg, pos, dn < 0, false));
+            accountLogs.add(new AccountLog(0, pb.getId(), ppId, Instant.now(), accId, PostingOperation.HOLD, 0, negDiff, posDiff, newDiff < 0, false));
         }
         accountDao.addLogs(accountLogs);
     }
 
     public void commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs){
         final List<AccountLog> accountLogs = new ArrayList<>();
-        final Map<Long, Long> dnMap = computeDiffs(newPostingLogs);
+        final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
 
         // has no sense for committed plan
         final long batchId = 0;
 
-        for(Long accId: dnMap.keySet()) {
-            final long dn = dnMap.get(accId);
-            long neg = dn < 0 ? -dn : 0;
-            long pos = dn > 0 ? -dn : 0;
-            long ownAmount =  PostingOperation.COMMIT.equals(op) ? dn : 0;
+        for(Long accId: newDiffsMap.keySet()) {
+            final long newDiff = newDiffsMap.get(accId);
+            long negDiff = newDiff < 0 ? -newDiff : 0;
+            long posDiff = newDiff > 0 ? -newDiff : 0;
+            long ownAmount =  PostingOperation.COMMIT.equals(op) ? newDiff : 0;
 
-            accountLogs.add(new AccountLog(0, batchId, ppId, Instant.now(), accId, op, ownAmount, neg, pos, dn < 0, false));
+            accountLogs.add(new AccountLog(0, batchId, ppId, Instant.now(), accId, op, ownAmount, negDiff, posDiff, newDiff < 0, false));
         }
         accountDao.addLogs(accountLogs);
     }

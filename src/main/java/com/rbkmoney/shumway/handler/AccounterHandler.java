@@ -133,9 +133,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
                     log.info("Adding posting logs");
                     planService.addPostingLogs(newDomainPostingLogs);
                     log.info("Adding account logs");
-                    List<PostingLog> savedPostingLogs = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+                    List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
                     if(PostingOperation.HOLD.equals(operation)){
-                        accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedPostingLogs);
+                        accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList);
                     }else{
                         accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs);
                     }
