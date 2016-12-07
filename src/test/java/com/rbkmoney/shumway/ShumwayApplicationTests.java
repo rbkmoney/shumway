@@ -2,7 +2,6 @@ package com.rbkmoney.shumway;
 
 import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.damsel.base.InvalidRequest;
-import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
@@ -13,10 +12,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -154,6 +153,51 @@ public class ShumwayApplicationTests {
         posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
         postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
         client.hold(postingPlanChange);
+    }
+    @Test
+    public void testManyHoldCommitPlan() throws TException {
+        long id = System.currentTimeMillis();
+        String planId = id + "";
+        long acc1 = client.createAccount(new AccountPrototype("RU"));
+        long acc2 = client.createAccount(new AccountPrototype("RU"));
+
+        List<PostingBatch> pb = Arrays.asList(
+                up(100, 1, acc1, acc2),
+                down(35, 2, acc1, acc2),
+                up(5, 3, acc1, acc2),
+                down(100, 4, acc1, acc2),
+                down(10, 5, acc1, acc2),
+                up(50, 6, acc1, acc2)
+        );
+
+        List<Integer> min = Arrays.asList(0, 0, 0, -30, -40, 0);
+        List<Integer> max = Arrays.asList(100, 65, 70, 0, 0, 10);
+
+        for(int i=0; i < 6; i++){
+            PostingPlanChange postingPlanChange = new PostingPlanChange(planId, pb.get(i));
+            PostingPlanLog planLog = client.hold(postingPlanChange);
+
+            assertEquals("" + i, (long) min.get(i), planLog.getAffectedAccounts().get(acc1).getMinAvailableAmount());
+            assertEquals("" + i, (long) max.get(i), planLog.getAffectedAccounts().get(acc1).getMaxAvailableAmount());
+        }
+
+        PostingPlan pp = new PostingPlan(planId, pb);
+        PostingPlanLog planLog = client.commitPlan(pp);
+
+        assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getOwnAmount());
+        assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getMaxAvailableAmount());
+        assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getMinAvailableAmount());
+
+    }
+
+    private PostingBatch up(long amount, long batchId,  long acc1, long acc2){
+        Posting posting = new Posting(acc2, acc1, amount, "RU", "Desc");
+        return new PostingBatch(batchId, asList(posting));
+    }
+
+    private PostingBatch down(long amount, long batchId,  long acc1, long acc2){
+        Posting posting = new Posting(acc1, acc2, amount, "RU", "Desc");
+        return new PostingBatch(batchId, asList(posting));
     }
 
     @Test

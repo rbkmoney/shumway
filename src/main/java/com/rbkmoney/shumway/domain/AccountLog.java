@@ -13,22 +13,22 @@ public class AccountLog {
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
-    private final long amount;
-    private final long ownAmount;
-    private final long ownAmountDelta;
+    private final long ownAmountDiff;
+    private final long negDiff;
+    private final long posDiff;
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long amount, long ownAmount, long ownAmountDelta, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAmountDiff, long negDiff, long posDiff, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
         this.creationTime = creationTime;
         this.accountId = accountId;
         this.operation = operation;
-        this.amount = amount;
-        this.ownAmount = ownAmount;
-        this.ownAmountDelta = ownAmountDelta;
+        this.ownAmountDiff = ownAmountDiff;
+        this.negDiff = negDiff;
+        this.posDiff = posDiff;
         this.credit = credit;
         this.merged = merged;
     }
@@ -57,16 +57,17 @@ public class AccountLog {
         return operation;
     }
 
-    public long getAmount() {
-        return amount;
+
+    public long getOwnAmountDiff() {
+        return ownAmountDiff;
     }
 
-    public long getOwnAmountDelta() {
-        return ownAmountDelta;
+    public long getNegDiff() {
+        return negDiff;
     }
 
-    public long getOwnAmount() {
-        return ownAmount;
+    public long getPosDiff() {
+        return posDiff;
     }
 
     public boolean isCredit() {
@@ -85,9 +86,9 @@ public class AccountLog {
         return id == that.id &&
                 batchId == that.batchId &&
                 accountId == that.accountId &&
-                amount == that.amount &&
-                ownAmount == that.ownAmount &&
-                ownAmountDelta == that.ownAmountDelta &&
+                ownAmountDiff == that.ownAmountDiff &&
+                negDiff == that.negDiff &&
+                posDiff == that.posDiff &&
                 credit == that.credit &&
                 merged == that.merged &&
                 Objects.equals(planId, that.planId) &&
@@ -97,7 +98,7 @@ public class AccountLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, amount, ownAmount, ownAmountDelta, credit, merged);
+        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, ownAmountDiff, negDiff, posDiff, credit, merged);
     }
 
     @Override
@@ -109,9 +110,9 @@ public class AccountLog {
                 ", creationTime=" + creationTime +
                 ", accountId=" + accountId +
                 ", operation=" + operation +
-                ", amount=" + amount +
-                ", ownAmount=" + ownAmount +
-                ", ownAmountDelta=" + ownAmountDelta +
+                ", ownAmountDiff=" + ownAmountDiff +
+                ", negDiff=" + negDiff +
+                ", posDiff=" + posDiff +
                 ", credit=" + credit +
                 ", merged=" + merged +
                 '}';

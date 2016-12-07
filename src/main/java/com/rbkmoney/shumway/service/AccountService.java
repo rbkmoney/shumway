@@ -4,6 +4,7 @@ import com.rbkmoney.damsel.accounter.PostingBatch;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -79,45 +80,94 @@ public class AccountService {
         return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account ->  new StatefulAccount(account, accountStates.get(account.getId()))));
     }
 
-    public void addAccountLogs(Collection<PostingLog> postingLogs) {
-       List<AccountLog> accountLogs = new ArrayList<>(postingLogs.size() * 2);
-       for (PostingLog postingLog: postingLogs) {
-           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getFromAccountId(), postingLog.getOperation(), getAmount(postingLog, true), getOwnAmount(postingLog, true), getOwnAmountDelta(postingLog, true), true, false));
-           accountLogs.add(new AccountLog(0, postingLog.getBatchId(), postingLog.getPlanId(), postingLog.getCreationTime(), postingLog.getToAccountId(), postingLog.getOperation(), getAmount(postingLog, false), getOwnAmount(postingLog, false), getOwnAmountDelta(postingLog, false), false, false));
-       }
-       accountDao.addLogs(accountLogs);
-    }
+    public void holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs) {
+        final List<AccountLog> accountLogs = new ArrayList<>();
 
-    private long getOwnAmount(PostingLog postingLog, boolean isCredit) {
-        switch (postingLog.getOperation()) {
-            case HOLD:
-                return 0;
-            case COMMIT:
-                return getAmount(postingLog, isCredit);
-            case ROLLBACK:
-                return 0;
-            default:
-                throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
+        long negDiff;
+        long posDiff;
+
+        final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
+        final Map<Long, Long> savedDiffsMap = computeDiffs(savedPostingLogs);
+        final Map<Long, Long> mergedDiffsMap = mergeDiffs(newDiffsMap, savedDiffsMap);
+
+        for(Long accId: newDiffsMap.keySet()){
+            boolean firstHoldForThisAcc = !savedDiffsMap.containsKey(accId);
+            final long newDiff = newDiffsMap.get(accId);
+
+            if(firstHoldForThisAcc){
+                negDiff = newDiff < 0 ? newDiff : 0;
+                posDiff = newDiff > 0 ? newDiff : 0;
+
+            }else{
+                // second+ hold
+                final long savedDiff = savedDiffsMap.get(accId);
+                final long mergedDiff = mergedDiffsMap.get(accId);
+
+                boolean signChanged = (savedDiff < 0 && mergedDiff > 0) ||  (savedDiff > 0 && mergedDiff < 0);
+                if(signChanged){
+                    if(savedDiff > 0){
+                        negDiff = mergedDiff;
+                        posDiff = -savedDiff;
+                    }else{
+                        negDiff = -savedDiff;
+                        posDiff = mergedDiff;
+                    }
+                }else{
+                    if(mergedDiff < 0){
+                        negDiff = newDiff;
+                        posDiff = 0;
+                    }else{
+                        negDiff = 0;
+                        posDiff = newDiff;
+                    }
+                }
+
+            }
+            accountLogs.add(new AccountLog(0, pb.getId(), ppId, Instant.now(), accId, PostingOperation.HOLD, 0, negDiff, posDiff, newDiff < 0, false));
         }
+        accountDao.addLogs(accountLogs);
     }
 
-    private long getOwnAmountDelta(PostingLog postingLog, boolean isCredit) {
-        switch (postingLog.getOperation()) {
-            case HOLD:
-                return getAmount(postingLog, isCredit);
-            case COMMIT:
-            case ROLLBACK:
-                return -getAmount(postingLog, isCredit);
-            default:
-                throw new IllegalStateException("Unknown operation:"+postingLog.getOperation());
+    public void commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs){
+        final List<AccountLog> accountLogs = new ArrayList<>();
+        final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
+
+        // has no sense for committed plan
+        final long batchId = 0;
+
+        for(Long accId: newDiffsMap.keySet()) {
+            final long newDiff = newDiffsMap.get(accId);
+            long negDiff = newDiff < 0 ? -newDiff : 0;
+            long posDiff = newDiff > 0 ? -newDiff : 0;
+            long ownAmount =  PostingOperation.COMMIT.equals(op) ? newDiff : 0;
+
+            accountLogs.add(new AccountLog(0, batchId, ppId, Instant.now(), accId, op, ownAmount, negDiff, posDiff, newDiff < 0, false));
         }
-    }
-/**
- * @param isCredit true - if it's the source in posting, false - if target (debit)
- * */
-    private long getAmount(PostingLog postingLog, boolean isCredit) {
-        return isCredit ? -postingLog.getAmount() : postingLog.getAmount();
+        accountDao.addLogs(accountLogs);
     }
 
+    private Map<Long, Long> computeDiffs(Collection<PostingLog> postingLogs) {
+        Map<Long, Long> accountIdToAmountDiff = new HashMap<>();
 
+        for(PostingLog pl: postingLogs){
+            accountIdToAmountDiff.put(pl.getFromAccountId(), accountIdToAmountDiff.getOrDefault(pl.getFromAccountId(),0L) - pl.getAmount());
+            accountIdToAmountDiff.put(pl.getToAccountId(), accountIdToAmountDiff.getOrDefault(pl.getToAccountId(), 0L) + pl.getAmount());
+        }
+
+        return accountIdToAmountDiff;
+    }
+
+    private Map<Long, Long> mergeDiffs(Map<Long, Long> one, Map<Long, Long> two){
+        final Map<Long, Long> merged = new HashMap<>();
+
+        for(long accId: one.keySet()){
+            merged.put(accId, merged.getOrDefault(accId, 0L) + one.get(accId));
+        }
+
+        for(long accId: two.keySet()){
+            merged.put(accId, merged.getOrDefault(accId, 0L) + two.get(accId));
+        }
+
+        return merged;
+    }
 }
