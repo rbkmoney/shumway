@@ -32,7 +32,7 @@
             </activation>
             <properties>
                 <db.url.host.name>localhost</db.url.host.name>
-                <db.url.host.port>32769</db.url.host.port>
+                <db.url.host.port>5432</db.url.host.port>
                 <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
                 <shm.db.user>postgres</shm.db.user>
                 <shm.db.password>postgres</shm.db.password>
@@ -125,7 +125,7 @@
         <dependency>
             <groupId>com.rbkmoney</groupId>
             <artifactId>damsel</artifactId>
-            <version>1.106-65aa80f</version>
+            <version>1.132-27bc11c</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney.logback</groupId>
