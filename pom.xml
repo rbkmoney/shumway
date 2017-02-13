@@ -13,13 +13,13 @@
     <parent>
         <groupId>com.rbkmoney</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>1.4.1.RELEASE</version>
+        <version>1.5.1.RELEASE</version>
     </parent>
     <properties>
         <server.port>8022</server.port>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.boot.admin.url></spring.boot.admin.url>
-        <postgresql.jdbc.version>9.4.1210</postgresql.jdbc.version>
+        <postgresql.jdbc.version>9.4.1212</postgresql.jdbc.version>
         <shm.db.schema>shm</shm.db.schema>
         <db.url.name>shumway</db.url.name>
     </properties>
@@ -86,6 +86,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hibernate</groupId>
+                    <artifactId>hibernate-validator</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -130,7 +136,7 @@
         <dependency>
             <groupId>com.rbkmoney.logback</groupId>
             <artifactId>nop-rolling</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </dependency>
         <!--Test libs-->
         <dependency>
@@ -171,7 +177,6 @@
                 <targetPath>${project.build.directory}</targetPath>
                 <includes>
                     <include>Dockerfile</include>
-                    <include>containerpilot.json</include>
                 </includes>
                 <filtering>true</filtering>
             </resource>
