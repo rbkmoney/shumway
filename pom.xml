@@ -15,46 +15,20 @@
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>1.4.1.RELEASE</version>
     </parent>
+
     <properties>
         <server.port>8022</server.port>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.boot.admin.url></spring.boot.admin.url>
         <postgresql.jdbc.version>9.4.1210</postgresql.jdbc.version>
-        <shm.db.schema>shm</shm.db.schema>
-        <db.url.name>shumway</db.url.name>
-    </properties>
 
-    <profiles>
-        <profile>
-            <id>dev</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <db.url.host.name>localhost</db.url.host.name>
-                <db.url.host.port>5432</db.url.host.port>
-                <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
-                <shm.db.user>postgres</shm.db.user>
-                <shm.db.password>postgres</shm.db.password>
-                <flyway.db.url>${shm.db.url}</flyway.db.url>
-                <flyway.user>${shm.db.user}</flyway.user>
-                <flyway.password>${shm.db.password}</flyway.password>
-            </properties>
-        </profile>
-        <profile>
-            <id>ci</id>
-            <properties>
-                <db.url.host.name>shm_db</db.url.host.name>
-                <db.url.host.port>5432</db.url.host.port>
-                <shm.db.url>jdbc:postgresql://${db.url.host.name}:${db.url.host.port}/${db.url.name}</shm.db.url>
-                <shm.db.user>postgres</shm.db.user>
-                <shm.db.password>postgres</shm.db.password>
-                <flyway.db.url>${shm.db.url}</flyway.db.url>
-                <flyway.user>${shm.db.user}</flyway.user>
-                <flyway.password>${shm.db.password}</flyway.password>
-            </properties>
-        </profile>
-    </profiles>
+        <db.host.name>localhost</db.host.name>
+        <db.host.port>5432</db.host.port>
+        <db.name>shumway</db.name>
+        <db.url>jdbc:postgresql://${db.host.name}:${db.host.port}/${db.name}</db.url>
+        <db.user>postgres</db.user>
+        <db.password>postgres</db.password>
+        <db.schema>shm</db.schema>
+    </properties>
 
     <dependencies>
         <!--Thirdparty libs-->
@@ -162,6 +136,18 @@
             <artifactId>lombok</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.1.8</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>1.1.8</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -171,7 +157,6 @@
                 <targetPath>${project.build.directory}</targetPath>
                 <includes>
                     <include>Dockerfile</include>
-                    <include>containerpilot.json</include>
                 </includes>
                 <filtering>true</filtering>
             </resource>

@@ -7,10 +7,8 @@ import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
 import org.hamcrest.Matcher;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
 
+import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,12 +21,14 @@ import static com.rbkmoney.shumway.handler.AccounterValidator.*;
 import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.*;
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.DEFINED_PORT;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment = DEFINED_PORT)
-public class ShumwayApplicationTests {
-    private AccounterSrv.Iface client = createClient("http://localhost:8022/accounter");
+public class ShumwayApplicationTests extends AbstractIntegrationTest{
+    private AccounterSrv.Iface client;
+
+    @PostConstruct
+    public void init(){
+        client = createClient("http://localhost:" + port + "/accounter");
+    }
 
     @Test
     public void testAddGetAccount() throws TException {
