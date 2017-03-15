@@ -23,7 +23,7 @@
         <postgresql.jdbc.version>9.4.1212</postgresql.jdbc.version>
         <dockerfile.base.service.tag>f26fcc19d1941ab74f1c72dd8a408be17a769333</dockerfile.base.service.tag>
         <damsel.version>1.132-27bc11c</damsel.version>
-        <shared.resources.version>0.2</shared.resources.version>
+        <shared.resources.version>0.2.1</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
         <db.host.port>5432</db.host.port>
