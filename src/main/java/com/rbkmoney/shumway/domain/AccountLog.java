@@ -13,23 +13,23 @@ public class AccountLog {
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
-    private final long ownAmountSum;
-    private final long maxAvailableAmountSum;
-    private final long minAvailableAmountSum;
+    private final long ownAccumulated;
+    private final long maxAccumulated;
+    private final long minAccumulated;
     private final long ownDiff;
     private final long minDiff;
     private final long maxDiff;
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAmountSum, long maxAvailableAmountSum, long minAvailableAmountSum, long ownDiff, long minDiff, long maxDiff, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAccumulated, long maxAccumulated, long minAccumulated, long ownDiff, long minDiff, long maxDiff, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
         this.creationTime = creationTime;
-        this.ownAmountSum = ownAmountSum;
-        this.maxAvailableAmountSum = maxAvailableAmountSum;
-        this.minAvailableAmountSum = minAvailableAmountSum;
+        this.ownAccumulated = ownAccumulated;
+        this.maxAccumulated = maxAccumulated;
+        this.minAccumulated = minAccumulated;
         this.accountId = accountId;
         this.operation = operation;
         this.ownDiff = ownDiff;
@@ -63,16 +63,16 @@ public class AccountLog {
         return operation;
     }
 
-    public long getOwnAmountSum() {
-        return ownAmountSum;
+    public long getOwnAccumulated() {
+        return ownAccumulated;
     }
 
-    public long getMaxAvailableAmountSum() {
-        return maxAvailableAmountSum;
+    public long getMaxAccumulated() {
+        return maxAccumulated;
     }
 
-    public long getMinAvailableAmountSum() {
-        return minAvailableAmountSum;
+    public long getMinAccumulated() {
+        return minAccumulated;
     }
 
     public long getOwnDiff() {
@@ -103,9 +103,9 @@ public class AccountLog {
         return getId() == that.getId() &&
                 getBatchId() == that.getBatchId() &&
                 getAccountId() == that.getAccountId() &&
-                getOwnAmountSum() == that.getOwnAmountSum() &&
-                getMaxAvailableAmountSum() == that.getMaxAvailableAmountSum() &&
-                getMinAvailableAmountSum() == that.getMinAvailableAmountSum() &&
+                getOwnAccumulated() == that.getOwnAccumulated() &&
+                getMaxAccumulated() == that.getMaxAccumulated() &&
+                getMinAccumulated() == that.getMinAccumulated() &&
                 getOwnDiff() == that.getOwnDiff() &&
                 getMinDiff() == that.getMinDiff() &&
                 getMaxDiff() == that.getMaxDiff() &&
@@ -118,7 +118,7 @@ public class AccountLog {
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getBatchId(), getPlanId(), getCreationTime(), getAccountId(), getOperation(), getOwnAmountSum(), getMaxAvailableAmountSum(), getMinAvailableAmountSum(), getOwnDiff(), getMinDiff(), getMaxDiff(), isCredit(), isMerged());
+        return Objects.hash(getId(), getBatchId(), getPlanId(), getCreationTime(), getAccountId(), getOperation(), getOwnAccumulated(), getMaxAccumulated(), getMinAccumulated(), getOwnDiff(), getMinDiff(), getMaxDiff(), isCredit(), isMerged());
     }
 
     @Override
@@ -130,9 +130,9 @@ public class AccountLog {
                 ", creationTime=" + creationTime +
                 ", accountId=" + accountId +
                 ", operation=" + operation +
-                ", ownAmountSum=" + ownAmountSum +
-                ", maxAvailableAmountSum=" + maxAvailableAmountSum +
-                ", minAvailableAmountSum=" + minAvailableAmountSum +
+                ", ownAccumulated=" + ownAccumulated +
+                ", maxAccumulated=" + maxAccumulated +
+                ", minAccumulated=" + minAccumulated +
                 ", ownDiff=" + ownDiff +
                 ", minDiff=" + minDiff +
                 ", maxDiff=" + maxDiff +

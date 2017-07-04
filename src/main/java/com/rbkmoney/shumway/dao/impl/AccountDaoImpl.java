@@ -180,7 +180,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
@@ -204,7 +204,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId, long batchId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId, long batchId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {

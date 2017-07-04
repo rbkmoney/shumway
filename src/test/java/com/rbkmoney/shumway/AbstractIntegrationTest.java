@@ -23,12 +23,26 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @ContextConfiguration(classes = ShumwayApplication.class, initializers = AbstractIntegrationTest.Initializer.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class AbstractIntegrationTest {
-    /*@ClassRule
+    @ClassRule
     public static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:9.6");
-*/
+
     public static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            initDockerEnv(configurableApplicationContext);
+        }
+
+        private static void initDockerEnv(ConfigurableApplicationContext configurableApplicationContext) {
+            EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
+                    "spring.datasource.url=" + postgres.getJdbcUrl(),
+                    "spring.datasource.username=" + postgres.getUsername(),
+                    "spring.datasource.password=" + postgres.getPassword(),
+                    "flyway.url=" + postgres.getJdbcUrl(),
+                    "flyway.user=" + postgres.getUsername(),
+                    "flyway.password=" + postgres.getPassword()
+            );        }
+
+        private static void initLocalEnv(ConfigurableApplicationContext configurableApplicationContext) {
             EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
                     "spring.datasource.url=" + "jdbc:postgresql://localhost:32778/accounter",
                     "spring.datasource.username=" + "postgres",
@@ -37,16 +51,9 @@ public class AbstractIntegrationTest {
                     "flyway.user=" + "postgres",
                     "flyway.password=" + ""
             );
-            /*EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
-                    "spring.datasource.url=" + postgres.getJdbcUrl(),
-                    "spring.datasource.username=" + postgres.getUsername(),
-                    "spring.datasource.password=" + postgres.getPassword(),
-                    "flyway.url=" + postgres.getJdbcUrl(),
-                    "flyway.user=" + postgres.getUsername(),
-                    "flyway.password=" + postgres.getPassword()
-            );*/
         }
     }
+
     @Value("${local.server.port}")
     protected int port;
 }

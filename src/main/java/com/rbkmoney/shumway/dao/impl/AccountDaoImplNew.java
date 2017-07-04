@@ -24,12 +24,12 @@ import java.util.stream.Collectors;
 /**
  * Created by vpankrashkin on 17.09.16.
  */
-public class AccountDaoImpl2 extends NamedParameterJdbcDaoSupport implements AccountDao {
+public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements AccountDao {
     private final AccountMapper accountMapper = new AccountMapper();
     private final AmountStatePairMapper amountStatePairMapper = new AmountStatePairMapper();
     private static final int BATCH_SIZE = 1000;
 
-    public AccountDaoImpl2(DataSource ds) {
+    public AccountDaoImplNew(DataSource ds) {
         setDataSource(ds);
     }
 
@@ -64,9 +64,9 @@ public class AccountDaoImpl2 extends NamedParameterJdbcDaoSupport implements Acc
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getAccountId());
                     ps.setString(4, argument.getOperation().getKey());
-                    ps.setLong(5, argument.getOwnAmountSum());
-                    ps.setLong(6, argument.getMaxAvailableAmountSum());
-                    ps.setLong(7, argument.getMinAvailableAmountSum());
+                    ps.setLong(5, argument.getOwnAccumulated());
+                    ps.setLong(6, argument.getMaxAccumulated());
+                    ps.setLong(7, argument.getMinAccumulated());
                     ps.setLong(8, argument.getOwnDiff());
                     ps.setLong(9, argument.getMinDiff());
                     ps.setLong(10, argument.getMaxDiff());
@@ -187,7 +187,7 @@ public class AccountDaoImpl2 extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {
@@ -211,7 +211,7 @@ public class AccountDaoImpl2 extends NamedParameterJdbcDaoSupport implements Acc
     }
 
     @Override
-    public Map<Long, AccountState> getAccountStatesUpTo(List<Long> accountIds, String planId, long batchId) throws DaoException {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId, long batchId) throws DaoException {
         if (accountIds.isEmpty()) {
             return Collections.emptyMap();
         } else {

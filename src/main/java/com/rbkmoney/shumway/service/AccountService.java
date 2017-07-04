@@ -1,6 +1,7 @@
 package com.rbkmoney.shumway.service;
 
 import com.rbkmoney.damsel.accounter.PostingBatch;
+import com.rbkmoney.damsel.accounter.PostingPlan;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
 
@@ -38,8 +39,13 @@ public class AccountService {
         return getExclusiveAccountsById(getUnicAccountIds.apply(batches));
     }
 
-    public Map<Long, Account> getAccountsByBatchList(Collection<PostingBatch> batches) {
+    public Map<Long, Account> getAccountsFromBatches(Collection<PostingBatch> batches) {
         return getAccountsById(getUnicAccountIds.apply(batches));
+    }
+
+    public Map<Long, AccountState> getAccountStatesFromBatches(Collection<PostingBatch> batches, String planId, boolean finalOp) {
+        long lastBatchId = finalOp ? Long.MAX_VALUE : batches.stream().mapToLong(batch -> batch.getId()).max().getAsLong();
+        return getAccountStatesUpTo(getUnicAccountIds.apply(batches), planId, lastBatchId);
     }
 
     public Map<Long, Account> getExclusiveAccountsById(Collection<Long> ids) {
@@ -59,17 +65,13 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId) {
-        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId));
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Map<Long, Account> srcAccounts, String planId, long batchId) {
+        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.keySet().stream().collect(Collectors.toList()), planId, batchId));
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId, long batchId) {
-        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId, batchId));
-    }
-
-    private Map<Long, StatefulAccount> getStatefulAccounts(Collection<Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
+    public Map<Long, StatefulAccount> getStatefulAccounts(Map<Long, Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
         Map<Long, AccountState> accountStates = valsSupplier.get();
-        return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account -> new StatefulAccount(account, accountStates.get(account.getId()))));
+        return srcAccounts.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey(), entry -> new StatefulAccount(entry.getValue(), accountStates.get(entry.getKey()))));
     }
 
     /**
@@ -79,7 +81,11 @@ public class AccountService {
         return accountDao.getAccountStates(srcAccountIds);
     }
 
-    public void holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs, Map<Long, AccountState> accStates) {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> srcAccountIds, String planId, long batchId) {
+        return accountDao.getAccountStatesUpTo(srcAccountIds, planId, batchId);
+    }
+
+    public Map<Long, AccountState> holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs, Map<Long, AccountState> accStates) {
         final List<AccountLog> accountLogs = new ArrayList<>();
 
         long ownAmountDiff = 0;
@@ -89,7 +95,7 @@ public class AccountService {
         final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
         final Map<Long, Long> savedDiffsMap = computeDiffs(savedPostingLogs);
         final Map<Long, Long> mergedDiffsMap = mergeDiffs(newDiffsMap, savedDiffsMap);
-
+        final Map<Long, AccountState> resultAccStates = new HashMap<>();
         for (Long accId : newDiffsMap.keySet()) {
             boolean firstHoldForThisAcc = !savedDiffsMap.containsKey(accId);
             final long newDiff = newDiffsMap.get(accId);
@@ -124,18 +130,22 @@ public class AccountService {
 
             }
             AccountState accountState = accStates.get(accId);
+            AccountLog accountLog = createAccountLog(pb.getId(), ppId, accId, PostingOperation.HOLD, accountState, ownAmountDiff, posDiff, negDiff, newDiff);
 
-            accountLogs.add(createAccountLog(pb.getId(), ppId, accId, PostingOperation.HOLD, accountState, ownAmountDiff, posDiff, negDiff, newDiff));
+            accountLogs.add(accountLog);
+            resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
         accountDao.addLogs(accountLogs);
+        return resultAccStates;
     }
 
-    public void commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs, Map<Long, AccountState> accState) {
+    public Map<Long, AccountState> commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs, Map<Long, AccountState> accState) {
         final List<AccountLog> accountLogs = new ArrayList<>();
         final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
+        final Map<Long, AccountState> resultAccStates = new HashMap<>();
 
         // has no sense for committed plan
-        final long batchId = 0;
+        final long batchId = Long.MAX_VALUE;
 
         for (Long accId : newDiffsMap.keySet()) {
             final long newDiff = newDiffsMap.get(accId);
@@ -143,10 +153,13 @@ public class AccountService {
             long posDiff = newDiff > 0 ? -newDiff : 0;
             long ownAmountDiff = PostingOperation.COMMIT.equals(op) ? newDiff : 0;
             AccountState accountState = accState.get(accId);
+            AccountLog accountLog = createAccountLog(batchId, ppId, accId, op, accountState, ownAmountDiff, posDiff, negDiff, newDiff);
 
-            accountLogs.add(createAccountLog(batchId, ppId, accId, op, accountState, ownAmountDiff, posDiff, negDiff, newDiff));
+            accountLogs.add(accountLog);
+            resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
         accountDao.addLogs(accountLogs);
+        return resultAccStates;
     }
 
     private AccountLog createAccountLog(long batchId, String ppId, long accId, PostingOperation op, AccountState accountState, long ownAmountDiff, long posDiff, long negDiff, long newDiff) {

@@ -36,6 +36,10 @@ public class AccounterHandler implements AccounterSrv.Iface {
         this.transactionTemplate = transactionTemplate;
     }
 
+    public static boolean isFinalOperation(PostingOperation operation) {
+        return operation != PostingOperation.HOLD;
+    }
+
     @Override
     public PostingPlanLog hold(PostingPlanChange planChange) throws InvalidPostingParams, InvalidRequest, TException {
         return doSafeOperation(new PostingPlan(planChange.getId(), Arrays.asList(planChange.getBatch())), PostingOperation.HOLD);
@@ -52,25 +56,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     protected PostingPlanLog doSafeOperation(PostingPlan postingPlan, PostingOperation operation) throws TException {
-        Map<Long, com.rbkmoney.shumway.domain.Account> affectedDomainAccounts;
+        Map<Long, com.rbkmoney.shumway.domain.StatefulAccount> affectedDomainStatefulAccounts;
         try {
-            affectedDomainAccounts = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
-        } catch (Exception e) {
-            log.error("Request phase 1 processing error: ", e);
-            if (e instanceof TransactionException) {
-                throw e;
-            } else if (e.getCause() instanceof TException) {
-                throw (TException) e.getCause();
-            } else {
-                throw e;
-            }
-        }
-
-        try {
-            Map<Long, StatefulAccount> affectedDomainStatefulAccounts = (isFinalOperation(operation)
-                    ? accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId())
-            : accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId(), postingPlan.getBatchList().get(0).getId()));
-
+            affectedDomainStatefulAccounts = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
             Map<Long, Account> affectedProtocolAccounts = affectedDomainStatefulAccounts.values()
                     .stream()
                     .collect(Collectors.toMap(
@@ -81,12 +69,18 @@ public class AccounterHandler implements AccounterSrv.Iface {
             log.info("Response: {}", protocolPostingPlanLog);
             return protocolPostingPlanLog;
         } catch (Exception e) {
-            log.error("Request phase 2 processing error: ", e);
-            throw e;
+            log.error("Request phase 1 processing error: ", e);
+            if (e instanceof TransactionException) {
+                throw e;
+            } else if (e.getCause() instanceof TException) {
+                throw (TException) e.getCause();
+            } else {
+                throw e;
+            }
         }
     }
 
-    private Map<Long, com.rbkmoney.shumway.domain.Account> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
+    private Map<Long, com.rbkmoney.shumway.domain.StatefulAccount> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
         boolean finalOp = isFinalOperation(operation);
         try {
             log.info("New {} request, received: {}", operation, postingPlan);
@@ -115,8 +109,10 @@ public class AccounterHandler implements AccounterSrv.Iface {
                         .filter(batch -> !savedDomainPostingLogs.containsKey(batch.getId()))
                         .collect(Collectors.toList());
                 Map<Long, com.rbkmoney.shumway.domain.Account> domainAccountMap;
+                Map<Long, AccountState> resultAccStates;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
-                    domainAccountMap = accountService.getAccountsByBatchList(postingPlan.getBatchList());
+                    domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
+                    resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
                     log.info("This is duplicate request");
                 } else {
                     domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
@@ -131,15 +127,14 @@ public class AccounterHandler implements AccounterSrv.Iface {
                     log.info("Adding posting logs");
                     planService.addPostingLogs(newDomainPostingLogs);
                     log.info("Adding account logs");
-                    if(PostingOperation.HOLD.equals(operation)){
+                    if (PostingOperation.HOLD.equals(operation)){
                         List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-                        accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, accStates);
-                    }else{
-                        accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs, accStates);
+                        resultAccStates = accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, accStates);
+                    } else {
+                        resultAccStates = accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs, accStates);
                     }
                 }
-
-                return domainAccountMap;
+                return accountService.getStatefulAccounts(domainAccountMap, () -> resultAccStates);
             }
         } catch (TException e) {
             throw new RuntimeException(e);
@@ -206,10 +201,6 @@ public class AccounterHandler implements AccounterSrv.Iface {
         Account response = convertFromDomainAccount(domainAccount);
         log.info("Response: {}", response);
         return response;
-    }
-
-    public static boolean isFinalOperation(PostingOperation operation) {
-        return operation != PostingOperation.HOLD;
     }
 
 }
