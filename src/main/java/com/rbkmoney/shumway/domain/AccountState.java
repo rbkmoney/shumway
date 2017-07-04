@@ -7,29 +7,37 @@ import java.util.Objects;
  */
 public class AccountState {
     private final long ownAmount;
-    private final long minAvailableAmount;
-    private final long maxAvailableAmount;
+    private final long minAccumulatedDiff;
+    private final long maxAccumulatedDuff;
 
     public AccountState() {
         this(0, 0, 0);
     }
 
-    public AccountState(long ownAmount, long minAvailableAmount, long maxAvailableAmount) {
-        this.ownAmount = ownAmount;
-        this.minAvailableAmount = minAvailableAmount;
-        this.maxAvailableAmount = maxAvailableAmount;
+    public AccountState(long ownAccumulatedAmount, long minAccumulatedDiff, long maxAccumulatedDuff) {
+        this.ownAmount = ownAccumulatedAmount;
+        this.minAccumulatedDiff = minAccumulatedDiff;
+        this.maxAccumulatedDuff = maxAccumulatedDuff;
     }
 
     public long getOwnAmount() {
         return ownAmount;
     }
 
+    public long getMaxAccumulatedDuff() {
+        return maxAccumulatedDuff;
+    }
+
+    public long getMinAccumulatedDiff() {
+        return minAccumulatedDiff;
+    }
+
     public long getMaxAvailableAmount() {
-        return maxAvailableAmount;
+        return ownAmount + maxAccumulatedDuff;
     }
 
     public long getMinAvailableAmount() {
-        return minAvailableAmount;
+        return ownAmount + minAccumulatedDiff;
     }
 
     @Override
@@ -38,12 +46,12 @@ public class AccountState {
         if (!(o instanceof AccountState)) return false;
         AccountState that = (AccountState) o;
         return ownAmount == that.ownAmount &&
-                maxAvailableAmount == that.maxAvailableAmount &&
-                minAvailableAmount == that.minAvailableAmount;
+                maxAccumulatedDuff == that.maxAccumulatedDuff &&
+                minAccumulatedDiff == that.minAccumulatedDiff;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownAmount, maxAvailableAmount, minAvailableAmount);
+        return Objects.hash(ownAmount, maxAccumulatedDuff, minAccumulatedDiff);
     }
 }

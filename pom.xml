@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1.2</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -22,7 +22,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <postgresql.jdbc.version>9.4.1212</postgresql.jdbc.version>
         <dockerfile.base.service.tag>f26fcc19d1941ab74f1c72dd8a408be17a769333</dockerfile.base.service.tag>
-        <damsel.version>1.132-27bc11c</damsel.version>
+        <damsel.version>1.161-cff3139</damsel.version>
         <shared.resources.version>0.2.1</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
@@ -49,6 +49,10 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -97,14 +101,18 @@
         </dependency>
         <!--RBK libs-->
         <dependency>
-            <groupId>com.rbkmoney.dbinit</groupId>
+            <groupId>com.rbkmoney</groupId>
             <artifactId>dbinit</artifactId>
-            <version>0.1.0</version>
+            <version>1.0.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney.woody</groupId>
             <artifactId>woody-thrift</artifactId>
-            <version>1.0.3</version>
+            <version>1.1.3</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>
