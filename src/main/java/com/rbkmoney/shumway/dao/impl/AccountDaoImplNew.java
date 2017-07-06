@@ -5,6 +5,7 @@ import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
+import org.apache.tomcat.jni.Local;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
@@ -17,7 +18,10 @@ import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,7 +42,7 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         final String sql = "INSERT INTO shm.account(curr_sym_code, creation_time, description) VALUES (:curr_sym_code, :creation_time, :description) RETURNING id;";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("curr_sym_code", prototype.getCurrSymCode());
-        params.addValue("creation_time", Timestamp.from(prototype.getCreationTime()));
+        params.addValue("creation_time", toLocalDateTime(prototype.getCreationTime()), Types.OTHER);
         params.addValue("description", prototype.getDescription());
         try {
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
@@ -70,7 +74,7 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
                     ps.setLong(8, argument.getOwnDiff());
                     ps.setLong(9, argument.getMinDiff());
                     ps.setLong(10, argument.getMaxDiff());
-                    ps.setTimestamp(11, Timestamp.from(argument.getCreationTime()));
+                    ps.setObject(11, toLocalDateTime(argument.getCreationTime()), Types.OTHER);
                     ps.setBoolean(12, argument.isCredit());
                     ps.setBoolean(13, argument.isMerged());
                 });
@@ -240,6 +244,10 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         return stateMap;
     }
 
+    private LocalDateTime toLocalDateTime(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+    }
+
     private static class AmountStatePairMapper implements RowMapper<Map.Entry<Long, AccountState>> {
         @Override
         public Map.Entry<Long, AccountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -257,7 +265,7 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         public Account mapRow(ResultSet rs, int i) throws SQLException {
             long id = rs.getLong("id");
             String currSymCode = rs.getString("curr_sym_code");
-            Instant creationTime = rs.getTimestamp("creation_time").toInstant();
+            Instant creationTime = rs.getObject("creation_time", LocalDateTime.class).toInstant(ZoneOffset.UTC);
             String description = rs.getString("description");
             return new Account(id, creationTime, currSymCode, description);
         }
