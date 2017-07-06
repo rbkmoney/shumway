@@ -1,7 +1,6 @@
 package com.rbkmoney.shumway.service;
 
 import com.rbkmoney.damsel.accounter.PostingBatch;
-import com.rbkmoney.damsel.accounter.PostingPlan;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
 
@@ -166,7 +165,7 @@ public class AccountService {
         long newOwnAmount = accountState.getOwnAmount() + ownAmountDiff;
         return new AccountLog(0, batchId, ppId, Instant.now(), accId, op,
                  newOwnAmount,
-                accountState.getMaxAccumulatedDuff() + posDiff,
+                accountState.getMaxAccumulatedDiff() + posDiff,
                 accountState.getMinAccumulatedDiff() + negDiff,
                 ownAmountDiff, negDiff, posDiff, newDiff < 0, false);
     }

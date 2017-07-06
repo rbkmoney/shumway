@@ -8,24 +8,24 @@ import java.util.Objects;
 public class AccountState {
     private final long ownAmount;
     private final long minAccumulatedDiff;
-    private final long maxAccumulatedDuff;
+    private final long maxAccumulatedDiff;
 
     public AccountState() {
         this(0, 0, 0);
     }
 
-    public AccountState(long ownAccumulatedAmount, long minAccumulatedDiff, long maxAccumulatedDuff) {
+    public AccountState(long ownAccumulatedAmount, long minAccumulatedDiff, long maxAccumulatedDiff) {
         this.ownAmount = ownAccumulatedAmount;
         this.minAccumulatedDiff = minAccumulatedDiff;
-        this.maxAccumulatedDuff = maxAccumulatedDuff;
+        this.maxAccumulatedDiff = maxAccumulatedDiff;
     }
 
     public long getOwnAmount() {
         return ownAmount;
     }
 
-    public long getMaxAccumulatedDuff() {
-        return maxAccumulatedDuff;
+    public long getMaxAccumulatedDiff() {
+        return maxAccumulatedDiff;
     }
 
     public long getMinAccumulatedDiff() {
@@ -33,7 +33,7 @@ public class AccountState {
     }
 
     public long getMaxAvailableAmount() {
-        return ownAmount + maxAccumulatedDuff;
+        return ownAmount + maxAccumulatedDiff;
     }
 
     public long getMinAvailableAmount() {
@@ -46,12 +46,12 @@ public class AccountState {
         if (!(o instanceof AccountState)) return false;
         AccountState that = (AccountState) o;
         return ownAmount == that.ownAmount &&
-                maxAccumulatedDuff == that.maxAccumulatedDuff &&
+                maxAccumulatedDiff == that.maxAccumulatedDiff &&
                 minAccumulatedDiff == that.minAccumulatedDiff;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownAmount, maxAccumulatedDuff, minAccumulatedDiff);
+        return Objects.hash(ownAmount, maxAccumulatedDiff, minAccumulatedDiff);
     }
 }
