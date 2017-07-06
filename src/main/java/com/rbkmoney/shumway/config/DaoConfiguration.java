@@ -2,7 +2,7 @@ package com.rbkmoney.shumway.config;
 
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.dao.PostingPlanDao;
-import com.rbkmoney.shumway.dao.impl.AccountDaoImpl;
+import com.rbkmoney.shumway.dao.impl.AccountDaoImplNew;
 import com.rbkmoney.shumway.dao.impl.PostingPlanDaoImpl;
 import org.jooq.Schema;
 import org.jooq.impl.SchemaImpl;
@@ -21,7 +21,7 @@ public class DaoConfiguration {
     @Bean(name = "accountDao")
     @DependsOn("dbInitializer")
     public AccountDao accountDao(DataSource dataSource) {
-        return new AccountDaoImpl(dataSource);
+        return new AccountDaoImplNew(dataSource);
     }
 
     @Bean(name = "postingPlanDao")
@@ -29,7 +29,6 @@ public class DaoConfiguration {
     public PostingPlanDao postingPlanDao(DataSource dataSource) {
         return new PostingPlanDaoImpl(dataSource);
     }
-
 
     @Bean
     public Schema dbSchema() {

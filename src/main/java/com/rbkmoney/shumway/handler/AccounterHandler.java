@@ -1,11 +1,10 @@
 package com.rbkmoney.shumway.handler;
 
 import com.rbkmoney.damsel.accounter.*;
+import com.rbkmoney.damsel.accounter.Account;
+import com.rbkmoney.damsel.accounter.PostingPlanLog;
 import com.rbkmoney.damsel.base.InvalidRequest;
-import com.rbkmoney.shumway.domain.Pair;
-import com.rbkmoney.shumway.domain.PostingLog;
-import com.rbkmoney.shumway.domain.PostingOperation;
-import com.rbkmoney.shumway.domain.StatefulAccount;
+import com.rbkmoney.shumway.domain.*;
 import com.rbkmoney.shumway.service.AccountService;
 import com.rbkmoney.shumway.service.PostingPlanService;
 import org.apache.thrift.TException;
@@ -14,10 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rbkmoney.shumway.handler.AccounterValidator.validatePlanNotFixedResult;
@@ -40,6 +36,10 @@ public class AccounterHandler implements AccounterSrv.Iface {
         this.transactionTemplate = transactionTemplate;
     }
 
+    public static boolean isFinalOperation(PostingOperation operation) {
+        return operation != PostingOperation.HOLD;
+    }
+
     @Override
     public PostingPlanLog hold(PostingPlanChange planChange) throws InvalidPostingParams, InvalidRequest, TException {
         return doSafeOperation(new PostingPlan(planChange.getId(), Arrays.asList(planChange.getBatch())), PostingOperation.HOLD);
@@ -56,25 +56,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     protected PostingPlanLog doSafeOperation(PostingPlan postingPlan, PostingOperation operation) throws TException {
-        Map<Long, com.rbkmoney.shumway.domain.Account> affectedDomainAccounts;
+        Map<Long, com.rbkmoney.shumway.domain.StatefulAccount> affectedDomainStatefulAccounts;
         try {
-            affectedDomainAccounts = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
-        } catch (Exception e) {
-            log.error("Request phase 1 processing error: ", e);
-            if (e instanceof TransactionException) {
-                throw e;
-            } else if (e.getCause() instanceof TException) {
-                throw (TException) e.getCause();
-            } else {
-                throw e;
-            }
-        }
-
-        try {
-            Map<Long, StatefulAccount> affectedDomainStatefulAccounts = (isFinalOperation(operation)
-                    ? accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId())
-            : accountService.getStatefulAccountsUpTo(affectedDomainAccounts.values(), postingPlan.getId(), postingPlan.getBatchList().get(0).getId()));
-
+            affectedDomainStatefulAccounts = transactionTemplate.execute(transactionStatus -> safePostingOperation(postingPlan, operation));
             Map<Long, Account> affectedProtocolAccounts = affectedDomainStatefulAccounts.values()
                     .stream()
                     .collect(Collectors.toMap(
@@ -85,12 +69,18 @@ public class AccounterHandler implements AccounterSrv.Iface {
             log.info("Response: {}", protocolPostingPlanLog);
             return protocolPostingPlanLog;
         } catch (Exception e) {
-            log.error("Request phase 2 processing error: ", e);
-            throw e;
+            log.error("Request phase 1 processing error: ", e);
+            if (e instanceof TransactionException) {
+                throw e;
+            } else if (e.getCause() instanceof TException) {
+                throw (TException) e.getCause();
+            } else {
+                throw e;
+            }
         }
     }
 
-    private Map<Long, com.rbkmoney.shumway.domain.Account> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
+    private Map<Long, com.rbkmoney.shumway.domain.StatefulAccount> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
         boolean finalOp = isFinalOperation(operation);
         try {
             log.info("New {} request, received: {}", operation, postingPlan);
@@ -98,7 +88,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
             AccounterValidator.validateStaticPostings(postingPlan);
             com.rbkmoney.shumway.domain.PostingPlanLog receivedDomainPlanLog = ProtocolConverter.convertToDomainPlan(postingPlan, operation);
 
-            Pair<com.rbkmoney.shumway.domain.PostingPlanLog, com.rbkmoney.shumway.domain.PostingPlanLog> postingPlanLogPair = finalOp ?
+            Map.Entry<com.rbkmoney.shumway.domain.PostingPlanLog, com.rbkmoney.shumway.domain.PostingPlanLog> postingPlanLogPair = finalOp ?
                     planService.updatePostingPlan(receivedDomainPlanLog, operation) :
                     planService.createOrUpdatePostingPlan(receivedDomainPlanLog);
             com.rbkmoney.shumway.domain.PostingPlanLog oldDomainPlanLog = postingPlanLogPair.getKey();
@@ -119,29 +109,32 @@ public class AccounterHandler implements AccounterSrv.Iface {
                         .filter(batch -> !savedDomainPostingLogs.containsKey(batch.getId()))
                         .collect(Collectors.toList());
                 Map<Long, com.rbkmoney.shumway.domain.Account> domainAccountMap;
+                Map<Long, AccountState> resultAccStates;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
-                    domainAccountMap = accountService.getAccountsByBatchList(postingPlan.getBatchList());
+                    domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
+                    resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
                     log.info("This is duplicate request");
                 } else {
                     domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
                     AccounterValidator.validateAccounts(newProtocolBatches, domainAccountMap);
+                    log.debug("Retrieving account states: {}", domainAccountMap.keySet());
+                    Map<Long, AccountState> accStates = accountService.getAccountStates(domainAccountMap.keySet());
                     log.debug("Saving posting batches: {}", newProtocolBatches);
                     List<PostingLog> newDomainPostingLogs = postingPlan.getBatchList()
                             .stream()
-                            .flatMap(batch -> batch.getPostings().stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, currDomainPlanLog)) )
+                            .flatMap(batch -> batch.getPostings().stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, batch, currDomainPlanLog)) )
                             .collect(Collectors.toList());
                     log.info("Adding posting logs");
                     planService.addPostingLogs(newDomainPostingLogs);
                     log.info("Adding account logs");
-                    if(PostingOperation.HOLD.equals(operation)){
+                    if (PostingOperation.HOLD.equals(operation)){
                         List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-                        accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList);
-                    }else{
-                        accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs);
+                        resultAccStates = accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, accStates);
+                    } else {
+                        resultAccStates = accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs, accStates);
                     }
                 }
-
-                return domainAccountMap;
+                return accountService.getStatefulAccounts(domainAccountMap, () -> resultAccStates);
             }
         } catch (TException e) {
             throw new RuntimeException(e);
@@ -208,10 +201,6 @@ public class AccounterHandler implements AccounterSrv.Iface {
         Account response = convertFromDomainAccount(domainAccount);
         log.info("Response: {}", response);
         return response;
-    }
-
-    public static boolean isFinalOperation(PostingOperation operation) {
-        return operation != PostingOperation.HOLD;
     }
 
 }

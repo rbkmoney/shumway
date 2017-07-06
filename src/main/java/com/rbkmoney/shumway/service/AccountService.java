@@ -38,8 +38,13 @@ public class AccountService {
         return getExclusiveAccountsById(getUnicAccountIds.apply(batches));
     }
 
-    public Map<Long, Account> getAccountsByBatchList(Collection<PostingBatch> batches) {
+    public Map<Long, Account> getAccountsFromBatches(Collection<PostingBatch> batches) {
         return getAccountsById(getUnicAccountIds.apply(batches));
+    }
+
+    public Map<Long, AccountState> getAccountStatesFromBatches(Collection<PostingBatch> batches, String planId, boolean finalOp) {
+        long lastBatchId = finalOp ? Long.MAX_VALUE : batches.stream().mapToLong(batch -> batch.getId()).max().getAsLong();
+        return getAccountStatesUpTo(getUnicAccountIds.apply(batches), planId, lastBatchId);
     }
 
     public Map<Long, Account> getExclusiveAccountsById(Collection<Long> ids) {
@@ -59,112 +64,131 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId) {
-        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId));
+    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Map<Long, Account> srcAccounts, String planId, long batchId) {
+        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.keySet().stream().collect(Collectors.toList()), planId, batchId));
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Collection<Account> srcAccounts, String planId, long batchId) {
-        return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()), planId, batchId));
-    }
-
-    private Map<Long, StatefulAccount> getStatefulAccounts(Collection<Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
+    public Map<Long, StatefulAccount> getStatefulAccounts(Map<Long, Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
         Map<Long, AccountState> accountStates = valsSupplier.get();
-        return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account ->  new StatefulAccount(account, accountStates.get(account.getId()))));
+        return srcAccounts.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey(), entry -> new StatefulAccount(entry.getValue(), accountStates.get(entry.getKey()))));
     }
 
     /**
-     * @return  List with stateful accounts. If no state was found for account, if'll be set to null
-     * */
-    public Map<Long, StatefulAccount> getStatefulAccounts(Collection<Account> srcAccounts) {
-        Map<Long, AccountState> accountStates = accountDao.getAccountStates(srcAccounts.stream().map(account -> account.getId()).collect(Collectors.toList()));
-        return srcAccounts.stream().collect(Collectors.toMap(account -> account.getId(), account ->  new StatefulAccount(account, accountStates.get(account.getId()))));
+     * @return List with account states. If no state was found for account, if'll be set to initial value
+     */
+    public Map<Long, AccountState> getAccountStates(Collection<Long> srcAccountIds) {
+        return accountDao.getAccountStates(srcAccountIds);
     }
 
-    public void holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs) {
+    public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> srcAccountIds, String planId, long batchId) {
+        return accountDao.getAccountStatesUpTo(srcAccountIds, planId, batchId);
+    }
+
+    public Map<Long, AccountState> holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs, Map<Long, AccountState> accStates) {
         final List<AccountLog> accountLogs = new ArrayList<>();
 
+        long ownAmountDiff = 0;
         long negDiff;
         long posDiff;
 
         final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
         final Map<Long, Long> savedDiffsMap = computeDiffs(savedPostingLogs);
         final Map<Long, Long> mergedDiffsMap = mergeDiffs(newDiffsMap, savedDiffsMap);
-
-        for(Long accId: newDiffsMap.keySet()){
+        final Map<Long, AccountState> resultAccStates = new HashMap<>();
+        for (Long accId : newDiffsMap.keySet()) {
             boolean firstHoldForThisAcc = !savedDiffsMap.containsKey(accId);
             final long newDiff = newDiffsMap.get(accId);
 
-            if(firstHoldForThisAcc){
+            if (firstHoldForThisAcc) {
                 negDiff = newDiff < 0 ? newDiff : 0;
                 posDiff = newDiff > 0 ? newDiff : 0;
 
-            }else{
+            } else {
                 // second+ hold
                 final long savedDiff = savedDiffsMap.get(accId);
                 final long mergedDiff = mergedDiffsMap.get(accId);
 
-                boolean signChanged = (savedDiff < 0 && mergedDiff > 0) ||  (savedDiff > 0 && mergedDiff < 0);
-                if(signChanged){
-                    if(savedDiff > 0){
+                boolean signChanged = (savedDiff < 0 && mergedDiff > 0) || (savedDiff > 0 && mergedDiff < 0);
+                if (signChanged) {
+                    if (savedDiff > 0) {
                         negDiff = mergedDiff;
                         posDiff = -savedDiff;
-                    }else{
+                    } else {
                         negDiff = -savedDiff;
                         posDiff = mergedDiff;
                     }
-                }else{
-                    if(mergedDiff < 0){
+                } else {
+                    if (mergedDiff < 0) {
                         negDiff = newDiff;
                         posDiff = 0;
-                    }else{
+                    } else {
                         negDiff = 0;
                         posDiff = newDiff;
                     }
                 }
 
             }
-            accountLogs.add(new AccountLog(0, pb.getId(), ppId, Instant.now(), accId, PostingOperation.HOLD, 0, negDiff, posDiff, newDiff < 0, false));
+            AccountState accountState = accStates.get(accId);
+            AccountLog accountLog = createAccountLog(pb.getId(), ppId, accId, PostingOperation.HOLD, accountState, ownAmountDiff, posDiff, negDiff, newDiff);
+
+            accountLogs.add(accountLog);
+            resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
         accountDao.addLogs(accountLogs);
+        return resultAccStates;
     }
 
-    public void commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs){
+    public Map<Long, AccountState> commitOrRollback(PostingOperation op, String ppId, List<PostingLog> newPostingLogs, Map<Long, AccountState> accState) {
         final List<AccountLog> accountLogs = new ArrayList<>();
         final Map<Long, Long> newDiffsMap = computeDiffs(newPostingLogs);
+        final Map<Long, AccountState> resultAccStates = new HashMap<>();
 
         // has no sense for committed plan
-        final long batchId = 0;
+        final long batchId = Long.MAX_VALUE;
 
-        for(Long accId: newDiffsMap.keySet()) {
+        for (Long accId : newDiffsMap.keySet()) {
             final long newDiff = newDiffsMap.get(accId);
             long negDiff = newDiff < 0 ? -newDiff : 0;
             long posDiff = newDiff > 0 ? -newDiff : 0;
-            long ownAmount =  PostingOperation.COMMIT.equals(op) ? newDiff : 0;
+            long ownAmountDiff = PostingOperation.COMMIT.equals(op) ? newDiff : 0;
+            AccountState accountState = accState.get(accId);
+            AccountLog accountLog = createAccountLog(batchId, ppId, accId, op, accountState, ownAmountDiff, posDiff, negDiff, newDiff);
 
-            accountLogs.add(new AccountLog(0, batchId, ppId, Instant.now(), accId, op, ownAmount, negDiff, posDiff, newDiff < 0, false));
+            accountLogs.add(accountLog);
+            resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
         accountDao.addLogs(accountLogs);
+        return resultAccStates;
+    }
+
+    private AccountLog createAccountLog(long batchId, String ppId, long accId, PostingOperation op, AccountState accountState, long ownAmountDiff, long posDiff, long negDiff, long newDiff) {
+        long newOwnAmount = accountState.getOwnAmount() + ownAmountDiff;
+        return new AccountLog(0, batchId, ppId, Instant.now(), accId, op,
+                 newOwnAmount,
+                accountState.getMaxAccumulatedDiff() + posDiff,
+                accountState.getMinAccumulatedDiff() + negDiff,
+                ownAmountDiff, negDiff, posDiff, newDiff < 0, false);
     }
 
     private Map<Long, Long> computeDiffs(Collection<PostingLog> postingLogs) {
         Map<Long, Long> accountIdToAmountDiff = new HashMap<>();
 
-        for(PostingLog pl: postingLogs){
-            accountIdToAmountDiff.put(pl.getFromAccountId(), accountIdToAmountDiff.getOrDefault(pl.getFromAccountId(),0L) - pl.getAmount());
+        for (PostingLog pl : postingLogs) {
+            accountIdToAmountDiff.put(pl.getFromAccountId(), accountIdToAmountDiff.getOrDefault(pl.getFromAccountId(), 0L) - pl.getAmount());
             accountIdToAmountDiff.put(pl.getToAccountId(), accountIdToAmountDiff.getOrDefault(pl.getToAccountId(), 0L) + pl.getAmount());
         }
 
         return accountIdToAmountDiff;
     }
 
-    private Map<Long, Long> mergeDiffs(Map<Long, Long> one, Map<Long, Long> two){
+    private Map<Long, Long> mergeDiffs(Map<Long, Long> one, Map<Long, Long> two) {
         final Map<Long, Long> merged = new HashMap<>();
 
-        for(long accId: one.keySet()){
+        for (long accId : one.keySet()) {
             merged.put(accId, merged.getOrDefault(accId, 0L) + one.get(accId));
         }
 
-        for(long accId: two.keySet()){
+        for (long accId : two.keySet()) {
             merged.put(accId, merged.getOrDefault(accId, 0L) + two.get(accId));
         }
 

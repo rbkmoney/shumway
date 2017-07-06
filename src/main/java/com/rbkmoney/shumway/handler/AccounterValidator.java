@@ -34,7 +34,9 @@ public class AccounterValidator {
     public static final String POSTING_PLAN_EMPTY = "Plan ($s) has no batches inside";
     public static final String POSTING_BATCH_EMPTY = "Posting batch (%d) has no postings inside";
     public static final String POSTING_BATCH_DUPLICATE = "Batch (%d) has duplicate in received list";
-    public static final String POSTING_BATCH_CONT_VIOLATION = "Too many batches in posting plan (%s)";
+    public static final String POSTING_BATCH_ID_RANGE_VIOLATION = "Batch in plan (%d) is not allowed to have long MAX or MIN value";
+    public static final String POSTING_BATCH_COUNT_VIOLATION = "Too many batches in posting plan (%s)";
+    public static final String POSTING_BATCH_ID_VIOLATION = "Batch has id %d lower than saved id: %d";
 
     private static final BiFunction<Posting, PostingLog, Boolean> postingComparator = (posting, postingLog) -> {
         if (posting.getAmount() != postingLog.getAmount()) {
@@ -63,7 +65,7 @@ public class AccounterValidator {
     public static void validateStaticPostings(PostingPlan postingPlan) throws TException {
         Map<Posting, String> errors = new HashMap<>();
         for (PostingBatch batch : postingPlan.getBatchList()) {
-            for (Posting posting :batch.getPostings()) {
+            for (Posting posting : batch.getPostings()) {
                 List<String> errorMessages = new ArrayList<>();
                 if (posting.getFromId() == posting.getToId()) {
                     errorMessages.add(SOURCE_TARGET_ACC_EQUAL_ERR);
@@ -102,6 +104,15 @@ public class AccounterValidator {
                     return list;
                 }
         );
+
+        //todo move to separate method, change err type to InvalidRequest
+        long maxSavedBatchId = savedDomainPostingsMap.keySet().stream().mapToLong(i -> i.longValue()).max().orElse(Long.MIN_VALUE);
+        long maxNewReceivedBatchId = receivedProtocolPostingsMap.keySet().stream().filter(i -> !commonIds.contains(i)).mapToLong(i -> i.longValue()).min().orElse(Long.MAX_VALUE);
+        if (maxNewReceivedBatchId < maxSavedBatchId) {
+            List<Posting> postingLogs = receivedProtocolPostingsMap.get(maxNewReceivedBatchId);
+            postingLogs.stream().forEach(posting -> addError.accept(posting, String.format(POSTING_BATCH_ID_VIOLATION, maxNewReceivedBatchId, maxSavedBatchId)));
+        }
+
 
         for (Long batchId : commonIds) {
 
@@ -147,11 +158,9 @@ public class AccounterValidator {
     }
 
 
-
-
     public static void validateAccounts(List<PostingBatch> newProtocolPostings, Map<Long, Account> domainAccountMap) throws TException {
         Map<Posting, String> errors = new HashMap<>();
-        for (PostingBatch newProtocolBatch: newProtocolPostings) {
+        for (PostingBatch newProtocolBatch : newProtocolPostings) {
             for (Posting posting : newProtocolBatch.getPostings()) {
                 List<String> errorMessages = new ArrayList<>();
                 com.rbkmoney.shumway.domain.Account fromAccount = domainAccountMap.get(posting.getFromId());
@@ -202,7 +211,7 @@ public class AccounterValidator {
         }
         if (!finalOp && receivedPostingPlan.getBatchListSize() != 1) {
             log.warn("More than one batch was received with not final operation on plan {}", receivedPostingPlan.getId());
-            throw new InvalidRequest(Arrays.asList(String.format(POSTING_BATCH_CONT_VIOLATION, receivedPostingPlan.getId())));
+            throw new InvalidRequest(Arrays.asList(String.format(POSTING_BATCH_COUNT_VIOLATION, receivedPostingPlan.getId())));
         }
         for (PostingBatch postingBatch : receivedPostingPlan.getBatchList()) {
             if (postingBatch.getPostingsSize() < 1) {
@@ -213,6 +222,10 @@ public class AccounterValidator {
                 log.warn("Batch {} has duplicate in received list", postingBatch.getId());
                 throw new InvalidRequest(Arrays.asList(String.format(POSTING_BATCH_DUPLICATE, postingBatch.getId())));
             }
+        }
+        if (batchIds.contains(Long.MIN_VALUE) || batchIds.contains(Long.MAX_VALUE)) {
+            log.warn("Batch in plan {} is not allowed to have long MAX or MIN value", receivedPostingPlan.getId());
+            throw new InvalidRequest(Arrays.asList(String.format(POSTING_BATCH_ID_RANGE_VIOLATION, receivedPostingPlan.getId())));
         }
     }
 

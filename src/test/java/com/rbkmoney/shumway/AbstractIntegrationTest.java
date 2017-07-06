@@ -29,6 +29,10 @@ public class AbstractIntegrationTest {
     public static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            initDockerEnv(configurableApplicationContext);
+        }
+
+        private static void initDockerEnv(ConfigurableApplicationContext configurableApplicationContext) {
             EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
                     "spring.datasource.url=" + postgres.getJdbcUrl(),
                     "spring.datasource.username=" + postgres.getUsername(),
@@ -36,9 +40,20 @@ public class AbstractIntegrationTest {
                     "flyway.url=" + postgres.getJdbcUrl(),
                     "flyway.user=" + postgres.getUsername(),
                     "flyway.password=" + postgres.getPassword()
+            );        }
+
+        private static void initLocalEnv(ConfigurableApplicationContext configurableApplicationContext) {
+            EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
+                    "spring.datasource.url=" + "jdbc:postgresql://localhost:32778/accounter",
+                    "spring.datasource.username=" + "postgres",
+                    "spring.datasource.password=" + "",
+                    "flyway.url=" + "jdbc:postgresql://localhost:32778/accounter",
+                    "flyway.user=" + "postgres",
+                    "flyway.password=" + ""
             );
         }
     }
+
     @Value("${local.server.port}")
     protected int port;
 }

@@ -1,13 +1,12 @@
 package com.rbkmoney.shumway.service;
 
 import com.rbkmoney.shumway.dao.PostingPlanDao;
-import com.rbkmoney.shumway.domain.Pair;
 import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.shumway.domain.PostingOperation;
 import com.rbkmoney.shumway.domain.PostingPlanLog;
 
+import java.util.AbstractMap;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -38,22 +37,22 @@ public class PostingPlanService {
     }
 
     /**
-     * @return Pair, contains old plan as a key and new/updated plan as a value
+     * @return Entry, contains old plan as a key and new/updated plan as a value
      * */
-    public Pair<PostingPlanLog, PostingPlanLog>  updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
+    public Map.Entry<PostingPlanLog, PostingPlanLog>  updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
         PostingPlanLog newPlanLog = postingPlanDao.updatePlanLog(planLog, overridableOperation);
 
-        return new Pair<>(oldPlanLog, newPlanLog);
+        return new AbstractMap.SimpleEntry<>(oldPlanLog, newPlanLog);
     }
 
     /**
-     * @return Pair, contains old plan as a key and new/updated plan as a value
+     * @return Entry, contains old plan as a key and new/updated plan as a value
      * */
-    public Pair<PostingPlanLog, PostingPlanLog> createOrUpdatePostingPlan(PostingPlanLog planLog) {
+    public Map.Entry<PostingPlanLog, PostingPlanLog> createOrUpdatePostingPlan(PostingPlanLog planLog) {
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
         PostingPlanLog newPlanLog = postingPlanDao.addOrUpdatePlanLog(planLog);
-        return new Pair<>(oldPlanLog, newPlanLog);
+        return new AbstractMap.SimpleEntry<>(oldPlanLog, newPlanLog);
     }
 
     public void addPostingLogs(List<PostingLog> postingLogs) {

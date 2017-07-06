@@ -5,6 +5,7 @@ import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
+import org.apache.tomcat.jni.Local;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
@@ -17,34 +18,37 @@ import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * Created by vpankrashkin on 17.09.16.
  */
-public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements AccountDao {
+public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements AccountDao {
     private final AccountMapper accountMapper = new AccountMapper();
     private final AmountStatePairMapper amountStatePairMapper = new AmountStatePairMapper();
     private static final int BATCH_SIZE = 1000;
 
-    public AccountDaoImpl(DataSource ds) {
+    public AccountDaoImplNew(DataSource ds) {
         setDataSource(ds);
     }
 
     @Override
     public long add(Account prototype) throws DaoException {
-        final String sql = "INSERT INTO shm.account(curr_sym_code, creation_time, description) VALUES (:curr_sym_code, :creation_time, :description) returning id;";
+        final String sql = "INSERT INTO shm.account(curr_sym_code, creation_time, description) VALUES (:curr_sym_code, :creation_time, :description) RETURNING id;";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("curr_sym_code", prototype.getCurrSymCode());
-        params.addValue("creation_time", Timestamp.from(prototype.getCreationTime()));
+        params.addValue("creation_time", toLocalDateTime(prototype.getCreationTime()), Types.OTHER);
         params.addValue("description", prototype.getDescription());
         try {
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
             int updateCount = getNamedParameterJdbcTemplate().update(sql, params, keyHolder);
             if (updateCount != 1) {
-                throw new DaoException("Account creation returned unexpected update count: "+updateCount);
+                throw new DaoException("Account creation returned unexpected update count: " + updateCount);
             }
             return keyHolder.getKey().longValue();
         } catch (NestedRuntimeException e) {
@@ -54,26 +58,32 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public void addLogs(List<AccountLog> logs) throws DaoException {
-        final String sql = "INSERT INTO shm.account_log(plan_id, batch_id, account_id, operation, own_amount_diff, neg_diff, pos_diff, creation_time, credit, merged) VALUES (?, ?, ?, ?::shm.posting_operation_type, ?, ?, ?, ?, ?, ?)";
+        final String sql = "INSERT INTO shm.account_log(" +
+                "plan_id, batch_id, account_id, operation, own_accumulated, max_accumulated, min_accumulated, own_diff, min_diff, max_diff, creation_time, credit, merged) " +
+                "VALUES (" +
+                "?, ?, ?, ?::shm.POSTING_OPERATION_TYPE,?, ?, ?, ?, ?, ?, ?, ?, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, logs, BATCH_SIZE,
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
                     ps.setLong(2, argument.getBatchId());
                     ps.setLong(3, argument.getAccountId());
                     ps.setString(4, argument.getOperation().getKey());
-                    ps.setLong(5, argument.getOwnDiff());
-                    ps.setLong(6, argument.getMinDiff());
-                    ps.setLong(7, argument.getMaxDiff());
-                    ps.setTimestamp(8, Timestamp.from(argument.getCreationTime()));
-                    ps.setBoolean(9, argument.isCredit());
-                    ps.setBoolean(10, argument.isMerged());
+                    ps.setLong(5, argument.getOwnAccumulated());
+                    ps.setLong(6, argument.getMaxAccumulated());
+                    ps.setLong(7, argument.getMinAccumulated());
+                    ps.setLong(8, argument.getOwnDiff());
+                    ps.setLong(9, argument.getMinDiff());
+                    ps.setLong(10, argument.getMaxDiff());
+                    ps.setObject(11, toLocalDateTime(argument.getCreationTime()), Types.OTHER);
+                    ps.setBoolean(12, argument.isCredit());
+                    ps.setBoolean(13, argument.isMerged());
                 });
         boolean checked = false;
         for (int i = 0; i < updateCounts.length; ++i) {
             for (int j = 0; j < updateCounts[i].length; ++j) {
                 checked = true;
                 if (updateCounts[i][j] != 1) {
-                    throw new DaoException("Account log creation returned unexpected update count: "+updateCounts[i][j]);
+                    throw new DaoException("Account log creation returned unexpected update count: " + updateCounts[i][j]);
                 }
             }
         }
@@ -100,7 +110,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         if (ids.isEmpty()) {
             return Collections.emptyList();
         } else {
-            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+")";
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in (" + StringUtils.collectionToDelimitedString(ids, ",") + ")";
             try {
                 return getJdbcTemplate().query(sql, accountMapper);
             } catch (NestedRuntimeException e) {
@@ -114,7 +124,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         if (ids.isEmpty()) {
             return Collections.emptyList();
         } else {
-            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+") FOR UPDATE ";
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in (" + StringUtils.collectionToDelimitedString(ids, ",") + ") FOR UPDATE ";
             try {
                 return getJdbcTemplate().query(sql, accountMapper);
             } catch (NestedRuntimeException e) {
@@ -128,7 +138,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         if (ids.isEmpty()) {
             return Collections.emptyList();
         } else {
-            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in ("+StringUtils.collectionToDelimitedString(ids, ",")+") FOR SHARE ";
+            final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in (" + StringUtils.collectionToDelimitedString(ids, ",") + ") FOR SHARE ";
             try {
                 return getJdbcTemplate().query(sql, accountMapper);
             } catch (NestedRuntimeException e) {
@@ -139,14 +149,13 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
 
     @Override
     public AccountState getAccountState(long accountId) throws DaoException {
-        final String sql = "select " +
+        final String sql = "SELECT " +
                 "  account_id, " +
-                "  sum(own_amount_diff) as own_amount,  " +
-                "  sum(neg_diff) as neg_total_diff, " +
-                "  sum(pos_diff) as pos_total_diff" +
-                " from shm.account_log" +
-                " where account_id = :account_id " +
-                " group by account_id";
+                "  own_accumulated,  " +
+                "  max_accumulated, " +
+                "  min_accumulated" +
+                " FROM shm.account_log " +
+                " WHERE id = (SELECT max(id) FROM shm.account_log WHERE account_id = :account_id)";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("account_id", accountId);
         try {
@@ -165,14 +174,16 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         } else {
             final String sql = "select " +
                     "  account_id, " +
-                    "  sum(own_amount_diff) as own_amount," +
-                    "  sum(neg_diff) as neg_total_diff," +
-                    "  sum(pos_diff) as pos_total_diff" +
-                    " from shm.account_log" +
-                    " where account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ")" +
-                    " group by account_id";
+                    "  own_accumulated,  " +
+                    "  max_accumulated," +
+                    "  min_accumulated" +
+                    " from shm.account_log " +
+                    " where id in (" +
+                    " select max(id) from shm.account_log  where account_id in (" +
+                    StringUtils.collectionToDelimitedString(accountIds, ",") +
+                    ") group by account_id)";
             try {
-               return fillAbsentValues(accountIds, getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
+                return fillAbsentValues(accountIds, getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
             }
@@ -187,14 +198,14 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             final String sql = "select " +
                     "  account_id, " +
-                    "  sum(own_amount_diff) as own_amount," +
-                    "  sum(neg_diff) as neg_total_diff," +
-                    "  sum(pos_diff) as pos_total_diff" +
+                    "  own_accumulated," +
+                    "  max_accumulated," +
+                    "  min_accumulated" +
                     " from shm.account_log" +
-                    " where" +
-                    "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") " +
-                    "  and id <= (select max(id) from shm.account_log where plan_id = :plan_id) " +
-                    " group by account_id";
+                    " where id in (" +
+                    "select max(id) from shm.account_log where account_id in (" +
+                    StringUtils.collectionToDelimitedString(accountIds,",") +
+                    ") and id <= (select max(id) from shm.account_log where plan_id = :plan_id) group by account_id) ";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -212,14 +223,14 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
             params.addValue("batch_id", batchId);
             final String sql = "select " +
                     "  account_id, " +
-                    "  sum(own_amount_diff) as own_amount," +
-                    "  sum(neg_diff) as neg_total_diff," +
-                    "  sum(pos_diff) as pos_total_diff" +
+                    "  own_accumulated," +
+                    "  max_accumulated," +
+                    "  min_accumulated" +
                     " from shm.account_log" +
-                    " where" +
-                    "  account_id in (" + StringUtils.collectionToDelimitedString(accountIds, ",") + ") " +
-                    "  and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) " +
-                    " group by account_id";
+                    " where id in (" +
+                    "select max(id) from shm.account_log where account_id in (" +
+                    StringUtils.collectionToDelimitedString(accountIds,",") +
+                    ") and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) group by account_id) ";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -233,14 +244,18 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         return stateMap;
     }
 
+    private LocalDateTime toLocalDateTime(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+    }
+
     private static class AmountStatePairMapper implements RowMapper<Map.Entry<Long, AccountState>> {
         @Override
         public Map.Entry<Long, AccountState> mapRow(ResultSet rs, int rowNum) throws SQLException {
             long accountId = rs.getLong("account_id");
-            long ownAmount = rs.getLong("own_amount");
-            long minAvailableAmount = rs.getLong("neg_total_diff") + ownAmount;
-            long maxAvailableAmount = rs.getLong("pos_total_diff") + ownAmount;
-            AccountState accountState = new AccountState(ownAmount, minAvailableAmount, maxAvailableAmount);
+            long ownAccumulatedAmount = rs.getLong("own_accumulated");
+            long minAccumulatedDiff = rs.getLong("min_accumulated");
+            long maxAccumulatedDiff = rs.getLong("max_accumulated");
+            AccountState accountState = new AccountState(ownAccumulatedAmount, minAccumulatedDiff, maxAccumulatedDiff);
             return new AbstractMap.SimpleEntry<>(accountId, accountState);
         }
     }
@@ -250,7 +265,7 @@ public class AccountDaoImpl  extends NamedParameterJdbcDaoSupport implements Acc
         public Account mapRow(ResultSet rs, int i) throws SQLException {
             long id = rs.getLong("id");
             String currSymCode = rs.getString("curr_sym_code");
-            Instant creationTime = rs.getTimestamp("creation_time").toInstant();
+            Instant creationTime = rs.getObject("creation_time", LocalDateTime.class).toInstant(ZoneOffset.UTC);
             String description = rs.getString("description");
             return new Account(id, creationTime, currSymCode, description);
         }

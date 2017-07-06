@@ -30,12 +30,13 @@ public class ProtocolConverter {
         return new Posting(domainPostingLog.getFromAccountId(), domainPostingLog.getToAccountId(), domainPostingLog.getAmount(), domainPostingLog.getCurrSymCode(), domainPostingLog.getDescription());
     }
 
-    public static PostingLog convertToDomainPosting(Posting protocolPosting,  com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) {
-        return new PostingLog(0, currentDomainPlanLog.getPlanId(), currentDomainPlanLog.getLastBatchId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
+    public static PostingLog convertToDomainPosting(Posting protocolPosting, PostingBatch batch,  com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) {
+        return new PostingLog(0, currentDomainPlanLog.getPlanId(), batch.getId(), protocolPosting.getFromId(), protocolPosting.getToId(), protocolPosting.getAmount(), Instant.now(), currentDomainPlanLog.getLastOperation(), protocolPosting.getCurrencySymCode(), protocolPosting.getDescription());
     }
 
     public static PostingPlanLog convertToDomainPlan(PostingPlan protocolPostingPlan, PostingOperation domainPostingOperation) {
-        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, protocolPostingPlan.getBatchList().get(0).getId());
+        long lastBatchId = protocolPostingPlan.getBatchList().stream().mapToLong(batch -> batch.getId()).max().getAsLong();
+        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, lastBatchId);
         return domainPlanLog;
     }
 

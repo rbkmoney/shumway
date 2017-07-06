@@ -13,22 +13,28 @@ public class AccountLog {
     private final Instant creationTime;
     private final long accountId;
     private final PostingOperation operation;
-    private final long ownAmountDiff;
-    private final long negDiff;
-    private final long posDiff;
+    private final long ownAccumulated;
+    private final long maxAccumulated;
+    private final long minAccumulated;
+    private final long ownDiff;
+    private final long minDiff;
+    private final long maxDiff;
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAmountDiff, long negDiff, long posDiff, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAccumulated, long maxAccumulated, long minAccumulated, long ownDiff, long minDiff, long maxDiff, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
         this.creationTime = creationTime;
+        this.ownAccumulated = ownAccumulated;
+        this.maxAccumulated = maxAccumulated;
+        this.minAccumulated = minAccumulated;
         this.accountId = accountId;
         this.operation = operation;
-        this.ownAmountDiff = ownAmountDiff;
-        this.negDiff = negDiff;
-        this.posDiff = posDiff;
+        this.ownDiff = ownDiff;
+        this.minDiff = minDiff;
+        this.maxDiff = maxDiff;
         this.credit = credit;
         this.merged = merged;
     }
@@ -57,17 +63,28 @@ public class AccountLog {
         return operation;
     }
 
-
-    public long getOwnAmountDiff() {
-        return ownAmountDiff;
+    public long getOwnAccumulated() {
+        return ownAccumulated;
     }
 
-    public long getNegDiff() {
-        return negDiff;
+    public long getMaxAccumulated() {
+        return maxAccumulated;
     }
 
-    public long getPosDiff() {
-        return posDiff;
+    public long getMinAccumulated() {
+        return minAccumulated;
+    }
+
+    public long getOwnDiff() {
+        return ownDiff;
+    }
+
+    public long getMinDiff() {
+        return minDiff;
+    }
+
+    public long getMaxDiff() {
+        return maxDiff;
     }
 
     public boolean isCredit() {
@@ -83,22 +100,25 @@ public class AccountLog {
         if (this == o) return true;
         if (!(o instanceof AccountLog)) return false;
         AccountLog that = (AccountLog) o;
-        return id == that.id &&
-                batchId == that.batchId &&
-                accountId == that.accountId &&
-                ownAmountDiff == that.ownAmountDiff &&
-                negDiff == that.negDiff &&
-                posDiff == that.posDiff &&
-                credit == that.credit &&
-                merged == that.merged &&
-                Objects.equals(planId, that.planId) &&
-                Objects.equals(creationTime, that.creationTime) &&
-                operation == that.operation;
+        return getId() == that.getId() &&
+                getBatchId() == that.getBatchId() &&
+                getAccountId() == that.getAccountId() &&
+                getOwnAccumulated() == that.getOwnAccumulated() &&
+                getMaxAccumulated() == that.getMaxAccumulated() &&
+                getMinAccumulated() == that.getMinAccumulated() &&
+                getOwnDiff() == that.getOwnDiff() &&
+                getMinDiff() == that.getMinDiff() &&
+                getMaxDiff() == that.getMaxDiff() &&
+                isCredit() == that.isCredit() &&
+                isMerged() == that.isMerged() &&
+                Objects.equals(getPlanId(), that.getPlanId()) &&
+                Objects.equals(getCreationTime(), that.getCreationTime()) &&
+                getOperation() == that.getOperation();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, batchId, planId, creationTime, accountId, operation, ownAmountDiff, negDiff, posDiff, credit, merged);
+        return Objects.hash(getId(), getBatchId(), getPlanId(), getCreationTime(), getAccountId(), getOperation(), getOwnAccumulated(), getMaxAccumulated(), getMinAccumulated(), getOwnDiff(), getMinDiff(), getMaxDiff(), isCredit(), isMerged());
     }
 
     @Override
@@ -110,9 +130,12 @@ public class AccountLog {
                 ", creationTime=" + creationTime +
                 ", accountId=" + accountId +
                 ", operation=" + operation +
-                ", ownAmountDiff=" + ownAmountDiff +
-                ", negDiff=" + negDiff +
-                ", posDiff=" + posDiff +
+                ", ownAccumulated=" + ownAccumulated +
+                ", maxAccumulated=" + maxAccumulated +
+                ", minAccumulated=" + minAccumulated +
+                ", ownDiff=" + ownDiff +
+                ", minDiff=" + minDiff +
+                ", maxDiff=" + maxDiff +
                 ", credit=" + credit +
                 ", merged=" + merged +
                 '}';
