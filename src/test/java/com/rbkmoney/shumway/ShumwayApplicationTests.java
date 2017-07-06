@@ -83,6 +83,45 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
     }
 
     @Test
+    public void testBatchIdConstraints() throws TException {
+        AccountPrototype prototype = new AccountPrototype("RUB");
+        prototype.setDescription("Test");
+        long id1 = client.createAccount(prototype);
+        long id2 = client.createAccount(prototype);
+
+        String planId = System.currentTimeMillis() + "";
+        Posting posting = new Posting(id1, id2, 1, "RUB", "");
+        try {
+            client.hold(new PostingPlanChange(planId, new PostingBatch(2, asList(posting))));
+            client.hold(new PostingPlanChange(planId, new PostingBatch(1, asList(posting))));
+            fail();
+        } catch (InvalidPostingParams e) {//todo invalid request expected here
+            assertEquals(1, e.getWrongPostingsSize());
+            assertThat(e.getWrongPostings().get(posting), genMatcher(POSTING_BATCH_ID_VIOLATION));
+            return;
+        }
+
+        try {
+            client.hold(new PostingPlanChange(planId, new PostingBatch(Long.MAX_VALUE, asList(posting))));
+            fail();
+        } catch (InvalidRequest e) {
+            assertEquals(1, e.getErrors().size());
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_BATCH_ID_RANGE_VIOLATION));
+            return;
+        }
+
+        try {
+            client.hold(new PostingPlanChange(planId, new PostingBatch(Long.MIN_VALUE, asList(posting))));
+            fail();
+        } catch (InvalidRequest e) {
+            assertEquals(1, e.getErrors().size());
+            assertThat(e.getErrors().get(0), genMatcher(POSTING_BATCH_ID_RANGE_VIOLATION));
+            return;
+        }
+
+    }
+
+    @Test
     public void testErrHoldGetPlan() throws TException {
         long id = System.currentTimeMillis();
         String planId = id + "";
