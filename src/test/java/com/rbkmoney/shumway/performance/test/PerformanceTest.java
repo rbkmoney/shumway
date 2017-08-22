@@ -27,7 +27,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 public class PerformanceTest {
     private static final int NUMBER_OF_THREADS = 8;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
-    private static final int NUMBER_OF_ACCS = 100;
+    private static final int NUMBER_OF_ACCS = 3;
     private static final int AMOUNT = 1000;
 
     private static final String DUMP_PATH = "10_000.bak";
@@ -96,6 +96,7 @@ public class PerformanceTest {
         test();
     }
 
+    @Test
     public void test() throws InterruptedException {
         List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
         int numberOfRounds = 100;
