@@ -69,7 +69,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
             log.info("Response: {}", protocolPostingPlanLog);
             return protocolPostingPlanLog;
         } catch (Exception e) {
-            log.error("Request phase 1 processing error: ", e);
+            log.error("Request processing error: ", e);
             if (e instanceof TransactionException) {
                 throw e;
             } else if (e.getCause() instanceof TException) {
@@ -83,7 +83,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
     private Map<Long, com.rbkmoney.shumway.domain.StatefulAccount> safePostingOperation(PostingPlan postingPlan, PostingOperation operation) {
         boolean finalOp = isFinalOperation(operation);
         try {
-            log.info("New {} request, received: {}", operation, postingPlan);
+            log.info("New {} request, plan: {}", operation, postingPlan);
             AccounterValidator.validateStaticPlanBatches(postingPlan, finalOp);
             AccounterValidator.validateStaticPostings(postingPlan);
             com.rbkmoney.shumway.domain.PostingPlanLog receivedDomainPlanLog = ProtocolConverter.convertToDomainPlan(postingPlan, operation);
@@ -111,22 +111,19 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 Map<Long, com.rbkmoney.shumway.domain.Account> domainAccountMap;
                 Map<Long, AccountState> resultAccStates;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
+                    log.info("This is duplicate request");
                     domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
                     resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
-                    log.info("This is duplicate request");
                 } else {
                     domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
                     AccounterValidator.validateAccounts(newProtocolBatches, domainAccountMap);
-                    log.debug("Retrieving account states: {}", domainAccountMap.keySet());
                     Map<Long, AccountState> accStates = accountService.getAccountStates(domainAccountMap.keySet());
                     log.debug("Saving posting batches: {}", newProtocolBatches);
                     List<PostingLog> newDomainPostingLogs = postingPlan.getBatchList()
                             .stream()
                             .flatMap(batch -> batch.getPostings().stream().map(posting -> ProtocolConverter.convertToDomainPosting(posting, batch, currDomainPlanLog)) )
                             .collect(Collectors.toList());
-                    log.info("Adding posting logs");
                     planService.addPostingLogs(newDomainPostingLogs);
-                    log.info("Adding account logs");
                     if (PostingOperation.HOLD.equals(operation)){
                         List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
                         resultAccStates = accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, accStates);
@@ -143,7 +140,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     @Override
     public PostingPlan getPlan(String planId) throws PlanNotFound, InvalidRequest, TException {
-        log.info("New GetPlan request, received: {}", planId);
+        log.info("New GetPlan request, id: {}", planId);
 
         com.rbkmoney.shumway.domain.PostingPlanLog domainPostingPlan;
         try {
@@ -171,7 +168,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     @Override
     public long createAccount(AccountPrototype accountPrototype) throws InvalidRequest, TException {
-        log.info("New CreateAccount request, received: {}", accountPrototype);
+        log.info("New CreateAccount request, proto: {}", accountPrototype);
         com.rbkmoney.shumway.domain.Account domainPrototype = convertToDomainAccount(accountPrototype);
         long response;
         try {
@@ -186,7 +183,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     @Override
     public Account getAccountByID(long id) throws AccountNotFound, TException {
-        log.info("New GetAccountById request, received: {}", id);
+        log.info("New GetAccountById request, id: {}", id);
         StatefulAccount domainAccount;
         try {
             domainAccount = accountService.getStatefulAccount(id);

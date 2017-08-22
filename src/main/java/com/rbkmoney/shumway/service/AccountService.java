@@ -3,6 +3,8 @@ package com.rbkmoney.shumway.service;
 import com.rbkmoney.damsel.accounter.PostingBatch;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.*;
@@ -15,6 +17,8 @@ import java.util.stream.Stream;
  * Created by vpankrashkin on 16.09.16.
  */
 public class AccountService {
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
+
     private final AccountDao accountDao;
     private final Function<Collection<PostingBatch>, Set<Long>> getUnicAccountIds = (batches) -> batches
             .stream()
@@ -35,24 +39,33 @@ public class AccountService {
     }
 
     public Map<Long, Account> getExclusiveAccountsByBatchList(Collection<PostingBatch> batches) {
+        log.info("Get exclusive accounts for batches");
         return getExclusiveAccountsById(getUnicAccountIds.apply(batches));
     }
 
     public Map<Long, Account> getAccountsFromBatches(Collection<PostingBatch> batches) {
+        log.info("Get accounts for batches");
         return getAccountsById(getUnicAccountIds.apply(batches));
     }
 
     public Map<Long, AccountState> getAccountStatesFromBatches(Collection<PostingBatch> batches, String planId, boolean finalOp) {
+        log.info("Get account states for batches");
         long lastBatchId = finalOp ? Long.MAX_VALUE : batches.stream().mapToLong(batch -> batch.getId()).max().getAsLong();
         return getAccountStatesUpTo(getUnicAccountIds.apply(batches), planId, lastBatchId);
     }
 
     public Map<Long, Account> getExclusiveAccountsById(Collection<Long> ids) {
-        return accountDao.getExclusive(ids).stream().collect(Collectors.toMap(account -> account.getId(), Function.identity()));
+        log.info("Get exclusive account states by ids: {}", ids);
+        Map<Long, Account> result = accountDao.getExclusive(ids).stream().collect(Collectors.toMap(account -> account.getId(), Function.identity()));
+        log.info("Got accounts: {}:{}", result.size(), result);
+        return result;
     }
 
     public Map<Long, Account> getAccountsById(Collection<Long> ids) {
-        return accountDao.get(ids).stream().collect(Collectors.toMap(account -> account.getId(), Function.identity()));
+        log.info("Get accounts by ids: {}", ids);
+        Map<Long, Account> result = accountDao.get(ids).stream().collect(Collectors.toMap(account -> account.getId(), Function.identity()));
+        log.info("Got accounts: {}:{}", result.size(), result);
+        return result;
     }
 
     public StatefulAccount getStatefulAccount(long id) {
@@ -64,11 +77,11 @@ public class AccountService {
         return new StatefulAccount(account, accountState);
     }
 
-    public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Map<Long, Account> srcAccounts, String planId, long batchId) {
+    /*public Map<Long, StatefulAccount> getStatefulAccountsUpTo(Map<Long, Account> srcAccounts, String planId, long batchId) {
         return getStatefulAccounts(srcAccounts, () -> accountDao.getAccountStatesUpTo(srcAccounts.keySet().stream().collect(Collectors.toList()), planId, batchId));
-    }
+    }*/
 
-    public Map<Long, StatefulAccount> getStatefulAccounts(Map<Long, Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
+    public static Map<Long, StatefulAccount> getStatefulAccounts(Map<Long, Account> srcAccounts, Supplier<Map<Long, AccountState>> valsSupplier) {
         Map<Long, AccountState> accountStates = valsSupplier.get();
         return srcAccounts.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey(), entry -> new StatefulAccount(entry.getValue(), accountStates.get(entry.getKey()))));
     }
@@ -77,11 +90,17 @@ public class AccountService {
      * @return List with account states. If no state was found for account, if'll be set to initial value
      */
     public Map<Long, AccountState> getAccountStates(Collection<Long> srcAccountIds) {
-        return accountDao.getAccountStates(srcAccountIds);
+        log.info("Get account states by ids: {}", srcAccountIds);
+        Map<Long, AccountState> result = accountDao.getAccountStates(srcAccountIds);
+        log.info("Got states: {}:{}", result.size(), result);
+        return result;
     }
 
     public Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> srcAccountIds, String planId, long batchId) {
-        return accountDao.getAccountStatesUpTo(srcAccountIds, planId, batchId);
+        log.info("Get states for accounts: {}, plan: {}, up to batch: {}", srcAccountIds, planId, batchId);
+        Map<Long, AccountState> result = accountDao.getAccountStatesUpTo(srcAccountIds, planId, batchId);
+        log.info("Got states: {}:{}", result.size(), result);
+        return result;
     }
 
     public Map<Long, AccountState> holdAccounts(String ppId, PostingBatch pb, List<PostingLog> newPostingLogs, List<PostingLog> savedPostingLogs, Map<Long, AccountState> accStates) {
@@ -134,7 +153,9 @@ public class AccountService {
             accountLogs.add(accountLog);
             resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
+        log.info("Add account hold logs: {}", accountLogs);
         accountDao.addLogs(accountLogs);
+        log.info("Added hold logs: {}", accountLogs.size());
         return resultAccStates;
     }
 
@@ -157,7 +178,9 @@ public class AccountService {
             accountLogs.add(accountLog);
             resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(), accountLog.getMaxAccumulated()));
         }
+        log.info("Add account c/r logs: {}", accountLogs);
         accountDao.addLogs(accountLogs);
+        log.info("Added c/r logs: {}", accountLogs.size());
         return resultAccStates;
     }
 

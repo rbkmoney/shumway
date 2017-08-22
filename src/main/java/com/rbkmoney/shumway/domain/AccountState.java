@@ -54,4 +54,13 @@ public class AccountState {
     public int hashCode() {
         return Objects.hash(ownAmount, maxAccumulatedDiff, minAccumulatedDiff);
     }
+
+    @Override
+    public String toString() {
+        return "AccountState{" +
+                "ownAmount=" + ownAmount +
+                ", minAccumulatedDiff=" + minAccumulatedDiff +
+                ", maxAccumulatedDiff=" + maxAccumulatedDiff +
+                '}';
+    }
 }
