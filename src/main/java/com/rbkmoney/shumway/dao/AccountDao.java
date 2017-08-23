@@ -17,12 +17,8 @@ public interface AccountDao {
     void addLogs(List<AccountLog> accountLogs) throws DaoException;
     Account get(long id) throws DaoException;
     Map<Long, StatefulAccount> getStatefulUpTo(Collection<Long> ids, String planId, long batchId) throws DaoException;
+    Map<Long, StatefulAccount> getStateful(Collection<Long> ids) throws DaoException;
     Map<Long, StatefulAccount> getStatefulExclusive(Collection<Long> ids) throws DaoException;
     List<Account> get(Collection<Long> ids) throws DaoException;
-    List<Account> getExclusive(Collection<Long> ids) throws DaoException;
-    List<Account> getShared(Collection<Long> ids) throws DaoException;
-    AccountState getAccountState(long accountId) throws DaoException;
     Map<Long, AccountState> getAccountStates(Collection<Long> accountIds) throws DaoException;
-    Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId) throws DaoException;
-    Map<Long, AccountState> getAccountStatesUpTo(Collection<Long> accountIds, String planId, long batchId) throws DaoException;
 }

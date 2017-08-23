@@ -108,20 +108,15 @@ public class AccounterHandler implements AccounterSrv.Iface {
                         .stream()
                         .filter(batch -> !savedDomainPostingLogs.containsKey(batch.getId()))
                         .collect(Collectors.toList());
-                Map<Long, com.rbkmoney.shumway.domain.Account> domainAccountMap;
                 Map<Long, AccountState> resultAccStates;
                 Map<Long, StatefulAccount> savedDomainStatefulAcc;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
                     log.info("This is duplicate request");
                     savedDomainStatefulAcc = accountService.getStatefulAccounts(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
-                    //domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
-                    //resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
                     resultAccStates = savedDomainStatefulAcc.values().stream().collect(Collectors.toMap(acc -> acc.getId(), acc -> acc.getAccountState()));
                 } else {
                     savedDomainStatefulAcc = accountService.getStatefulExclusiveAccounts(postingPlan.getBatchList());
-                    ///domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
                     AccounterValidator.validateAccounts(newProtocolBatches, savedDomainStatefulAcc);
-                    //Map<Long, AccountState> accStates = accountService.getAccountStates(domainAccountMap.keySet());
                     log.debug("Saving posting batches: {}", newProtocolBatches);
                     List<PostingLog> newDomainPostingLogs = postingPlan.getBatchList()
                             .stream()

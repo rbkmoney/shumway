@@ -66,14 +66,14 @@ public class AccountUtils {
                                            int numberOfRounds) throws InterruptedException {
         final ExecutorService executorService = newFixedThreadPoolWithQueueSize(numberOfThreads, sizeOfQueue);
         long startTime = System.currentTimeMillis();
-
+        int transferCounter = 0;
         for(int j=0; j < numberOfRounds; j++) {
             for (int i = 0; i < accs.size(); i++) {
                 final long from = accs.get(i);
                 final long to = accs.get((i + 1) % accs.size());
-                final int transferId = i;
+                final int transferId = transferCounter++;
 
-                executorService.submit(() -> makeTransfer(client, from, to, amount, transferId));
+                executorService.submit(() -> makeTransfer(client, from, to, amount, startTime + "_"+ transferId));
             }
         }
         log.warn("All transactions submitted.");
@@ -120,8 +120,8 @@ public class AccountUtils {
     }
 
     // transferId - unique id, used for PostingPlan id
-    public static void makeTransfer(AccounterSrv.Iface client, long from, long to, long amount, int transferId){
-        final String ppid = System.currentTimeMillis() + "_" + transferId;
+    public static void makeTransfer(AccounterSrv.Iface client, long from, long to, long amount, String transferId){
+        final String ppid = transferId;
         final PostingPlan postingPlan = createNewPostingPlan(ppid, from, to, amount);
         makeTransfer(client, postingPlan);
     }

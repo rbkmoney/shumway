@@ -37,13 +37,10 @@ public interface PostingPlanDao {
      * @return Posting log records containing referred posting operation
      * */
     Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) throws DaoException;
-    Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException;
-
 
     /**
      * Add new posting logs. No duplication or data integrity checks're performed here. Referred data expected to be consistent.
      * */
     void addPostingLogs(List<PostingLog> postingLogs) throws DaoException;
-
 
 }
