@@ -3,6 +3,7 @@ package com.rbkmoney.shumway.dao;
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
+import com.rbkmoney.shumway.domain.StatefulAccount;
 
 import java.util.Collection;
 import java.util.List;
@@ -15,6 +16,8 @@ public interface AccountDao {
     long add(Account prototype) throws DaoException;
     void addLogs(List<AccountLog> accountLogs) throws DaoException;
     Account get(long id) throws DaoException;
+    Map<Long, StatefulAccount> getStatefulUpTo(Collection<Long> ids, String planId, long batchId) throws DaoException;
+    Map<Long, StatefulAccount> getStatefulExclusive(Collection<Long> ids) throws DaoException;
     List<Account> get(Collection<Long> ids) throws DaoException;
     List<Account> getExclusive(Collection<Long> ids) throws DaoException;
     List<Account> getShared(Collection<Long> ids) throws DaoException;

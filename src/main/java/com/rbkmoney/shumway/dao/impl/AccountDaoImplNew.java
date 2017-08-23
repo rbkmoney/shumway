@@ -5,6 +5,7 @@ import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
+import com.rbkmoney.shumway.domain.StatefulAccount;
 import org.apache.tomcat.jni.Local;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
  */
 public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements AccountDao {
     private final AccountMapper accountMapper = new AccountMapper();
+    private final StatefulAccountMapper statefulAccountMapper = new StatefulAccountMapper();
     private final AmountStatePairMapper amountStatePairMapper = new AmountStatePairMapper();
     private static final int BATCH_SIZE = 1000;
 
@@ -120,6 +122,46 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
     }
 
     @Override
+    public Map<Long, StatefulAccount> getStatefulUpTo(Collection<Long> ids, String planId, long batchId) throws DaoException {
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        } else {
+            MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
+            params.addValue("batch_id", batchId);
+            final String sql = "select acc.*, st.* from (" +
+                    "SELECT id, curr_sym_code, creation_time, description FROM shm.account " +
+                    "WHERE id in ("+StringUtils.collectionToCommaDelimitedString(ids)+")) acc left join (" +
+                    "select account_id, own_accumulated, max_accumulated, min_accumulated from shm.account_log al join (" +
+                    "values "+StringUtils.collectionToDelimitedString(ids, ",", "(", ")")+
+                    ") as t (acId) on al.id = (select max(id) from shm.account_log  where account_id=t.acId and plan_id=:plan_id and batch_id=:batch_id)) st  on acc.id = st.account_id;";
+            try {
+                return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper).stream().collect(Collectors.toMap(acc -> acc.getId(), acc -> acc));
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
+    @Override
+    public Map<Long, StatefulAccount> getStatefulExclusive(Collection<Long> ids) throws DaoException {
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        } else {
+            final String sql = "select acc.*, st.* from (" +
+                    "SELECT id, curr_sym_code, creation_time, description FROM shm.account " +
+                    "WHERE id in ("+StringUtils.collectionToCommaDelimitedString(ids)+") FOR UPDATE) acc left join (" +
+                    "select account_id, own_accumulated, max_accumulated, min_accumulated from shm.account_log al join (" +
+                    "values "+StringUtils.collectionToDelimitedString(ids, ",", "(", ")")+
+                    ") as t (acId) on al.id = (select max(id) from shm.account_log  where account_id=t.acId)) st  on acc.id = st.account_id;";
+            try {
+                return getJdbcTemplate().query(sql, statefulAccountMapper).stream().collect(Collectors.toMap(acc -> acc.getId(), acc -> acc));
+            } catch (NestedRuntimeException e) {
+                throw new DaoException(e);
+            }
+        }
+    }
+
+    @Override
     public List<Account> getExclusive(Collection<Long> ids) throws DaoException {
         if (ids.isEmpty()) {
             return Collections.emptyList();
@@ -156,6 +198,7 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
                 "  min_accumulated" +
                 " FROM shm.account_log " +
                 " WHERE id = (SELECT max(id) FROM shm.account_log WHERE account_id = :account_id)";
+
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("account_id", accountId);
         try {
@@ -173,15 +216,13 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             return Collections.emptyMap();
         } else {
             final String sql = "select " +
-                    "  account_id, " +
-                    "  own_accumulated,  " +
-                    "  max_accumulated," +
-                    "  min_accumulated" +
-                    " from shm.account_log " +
-                    " where id in (" +
-                    " select max(id) from shm.account_log  where account_id in (" +
-                    StringUtils.collectionToDelimitedString(accountIds, ",") +
-                    ") group by account_id)";
+                    "account_id,  " +
+                    "own_accumulated, " +
+                    "max_accumulated, " +
+                    "min_accumulated  " +
+                    "from shm.account_log al " +
+                    "join (values "+StringUtils.collectionToDelimitedString(accountIds, ",", "(", ")")+") as t (acId) " +
+                    "on al.id = (select max(id) from shm.account_log  where account_id=t.acId);";
             try {
                 return fillAbsentValues(accountIds, getJdbcTemplate().query(sql, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -197,15 +238,13 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         } else {
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             final String sql = "select " +
-                    "  account_id, " +
-                    "  own_accumulated," +
-                    "  max_accumulated," +
-                    "  min_accumulated" +
-                    " from shm.account_log" +
-                    " where id in (" +
-                    "select max(id) from shm.account_log where account_id in (" +
-                    StringUtils.collectionToDelimitedString(accountIds,",") +
-                    ") and id <= (select max(id) from shm.account_log where plan_id = :plan_id) group by account_id) ";
+                    "account_id,  " +
+                    "own_accumulated, " +
+                    "max_accumulated, " +
+                    "min_accumulated  " +
+                    "from shm.account_log al " +
+                    "join (values "+StringUtils.collectionToDelimitedString(accountIds, ",", "(", ")")+") as t (acId) " +
+                    "on al.id = (select max(id) from shm.account_log  where account_id=t.acId and plan_id=:plan_id);";
             try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
@@ -222,16 +261,14 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             params.addValue("batch_id", batchId);
             final String sql = "select " +
-                    "  account_id, " +
-                    "  own_accumulated," +
-                    "  max_accumulated," +
-                    "  min_accumulated" +
-                    " from shm.account_log" +
-                    " where id in (" +
-                    "select max(id) from shm.account_log where account_id in (" +
-                    StringUtils.collectionToDelimitedString(accountIds,",") +
-                    ") and id <= (select max(id) from shm.account_log where plan_id = :plan_id and batch_id = :batch_id) group by account_id) ";
-            try {
+                    "account_id,  " +
+                    "own_accumulated, " +
+                    "max_accumulated, " +
+                    "min_accumulated  " +
+                    "from shm.account_log al " +
+                    "join (values "+StringUtils.collectionToDelimitedString(accountIds, ",", "(", ")")+") as t (acId) " +
+                    "on al.id = (select max(id) from shm.account_log  where account_id=t.acId and plan_id=:plan_id and batch_id=:batch_id);";
+           try {
                 return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper).stream().collect(Collectors.toMap(pair -> pair.getKey(), pair -> pair.getValue())));
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
@@ -268,6 +305,28 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             Instant creationTime = rs.getObject("creation_time", LocalDateTime.class).toInstant(ZoneOffset.UTC);
             String description = rs.getString("description");
             return new Account(id, creationTime, currSymCode, description);
+        }
+    }
+
+    private static class StatefulAccountMapper implements RowMapper<StatefulAccount> {
+        @Override
+        public StatefulAccount mapRow(ResultSet rs, int i) throws SQLException {
+            AccountState accountState;
+            Long ownAccumulatedAmount = rs.getObject("own_accumulated", Long.class);
+            if (rs.wasNull()) {
+                accountState = new AccountState();
+            } else {
+                long minAccumulatedDiff = rs.getLong("min_accumulated");
+                long maxAccumulatedDiff = rs.getLong("max_accumulated");
+                accountState = new AccountState(ownAccumulatedAmount, minAccumulatedDiff, maxAccumulatedDiff);
+            }
+
+            long id = rs.getLong("id");
+            String currSymCode = rs.getString("curr_sym_code");
+            Instant creationTime = rs.getObject("creation_time", LocalDateTime.class).toInstant(ZoneOffset.UTC);
+            String description = rs.getString("description");
+
+            return new StatefulAccount(id, creationTime, currSymCode, description, accountState);
         }
     }
 }

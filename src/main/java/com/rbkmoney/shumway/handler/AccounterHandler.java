@@ -110,14 +110,18 @@ public class AccounterHandler implements AccounterSrv.Iface {
                         .collect(Collectors.toList());
                 Map<Long, com.rbkmoney.shumway.domain.Account> domainAccountMap;
                 Map<Long, AccountState> resultAccStates;
+                Map<Long, StatefulAccount> savedDomainStatefulAcc;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
                     log.info("This is duplicate request");
-                    domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
-                    resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
+                    savedDomainStatefulAcc = accountService.getStatefulAccounts(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
+                    //domainAccountMap = accountService.getAccountsFromBatches(postingPlan.getBatchList());
+                    //resultAccStates = accountService.getAccountStatesFromBatches(postingPlan.getBatchList(), postingPlan.getId(), isFinalOperation(operation));
+                    resultAccStates = savedDomainStatefulAcc.values().stream().collect(Collectors.toMap(acc -> acc.getId(), acc -> acc.getAccountState()));
                 } else {
-                    domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
-                    AccounterValidator.validateAccounts(newProtocolBatches, domainAccountMap);
-                    Map<Long, AccountState> accStates = accountService.getAccountStates(domainAccountMap.keySet());
+                    savedDomainStatefulAcc = accountService.getStatefulExclusiveAccounts(postingPlan.getBatchList());
+                    ///domainAccountMap = accountService.getExclusiveAccountsByBatchList(postingPlan.getBatchList());
+                    AccounterValidator.validateAccounts(newProtocolBatches, savedDomainStatefulAcc);
+                    //Map<Long, AccountState> accStates = accountService.getAccountStates(domainAccountMap.keySet());
                     log.debug("Saving posting batches: {}", newProtocolBatches);
                     List<PostingLog> newDomainPostingLogs = postingPlan.getBatchList()
                             .stream()
@@ -126,12 +130,12 @@ public class AccounterHandler implements AccounterSrv.Iface {
                     planService.addPostingLogs(newDomainPostingLogs);
                     if (PostingOperation.HOLD.equals(operation)){
                         List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-                        resultAccStates = accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, accStates);
+                        resultAccStates = accountService.holdAccounts(postingPlan.getId(), postingPlan.getBatchList().get(0), newDomainPostingLogs, savedDomainPostingLogList, savedDomainStatefulAcc);
                     } else {
-                        resultAccStates = accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs, accStates);
+                        resultAccStates = accountService.commitOrRollback(operation, postingPlan.getId(), newDomainPostingLogs, savedDomainStatefulAcc);
                     }
                 }
-                return accountService.getStatefulAccounts(domainAccountMap, () -> resultAccStates);
+                return accountService.getStatefulAccounts(savedDomainStatefulAcc, () -> resultAccStates);
             }
         } catch (TException e) {
             throw new RuntimeException(e);
