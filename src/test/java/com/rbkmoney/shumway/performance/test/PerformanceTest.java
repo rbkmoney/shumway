@@ -99,13 +99,15 @@ public class PerformanceTest {
     @Test
     public void test() throws InterruptedException {
         List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
-        int numberOfRounds = 100;
+        int numberOfRounds = 1000;
+        long startTime = System.currentTimeMillis();
         double avgTime = AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT, numberOfRounds);
 
         System.out.println("NUMBER_OF_THREADS: " + NUMBER_OF_THREADS);
         System.out.println("NUMBER_OF_ACCS: " + NUMBER_OF_ACCS);
         System.out.println("NUMBER_OF_ROUNDS: " + numberOfRounds);
         System.out.println("AVG_TIME(ms): " + avgTime);
+        System.out.println("TOTAL_TIME(ms):" + (System.currentTimeMillis() - startTime));
     }
 
     private static void t(String preffix, Runnable function){

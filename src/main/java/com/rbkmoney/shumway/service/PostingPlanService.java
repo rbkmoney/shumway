@@ -31,22 +31,12 @@ public class PostingPlanService {
         return result;
     }
 
-    /*public Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) {
-        return postingPlanDao.getPostingLogs(planId, batchIds, operation);
-    }*/
-
     public PostingPlanLog getSharedPostingPlan(String planId) {
         log.info("Get shared plan: {}", planId);
         PostingPlanLog result = postingPlanDao.getSharedPlanLog(planId);
         log.info("Got shared plan: {}", result);
         return result;
     }
-
-/*
-    public PostingPlanLog getExclusivePostingPlan(String planId) {
-        return postingPlanDao.getExclusivePlanLog(planId);
-    }
-*/
 
     /**
      * @return Entry, contains old plan as a key and new/updated plan as a value

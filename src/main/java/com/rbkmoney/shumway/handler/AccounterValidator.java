@@ -8,6 +8,7 @@ import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.PostingLog;
 import com.rbkmoney.shumway.domain.PostingOperation;
+import com.rbkmoney.shumway.domain.StatefulAccount;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,7 +159,7 @@ public class AccounterValidator {
     }
 
 
-    public static void validateAccounts(List<PostingBatch> newProtocolPostings, Map<Long, Account> domainAccountMap) throws TException {
+    public static void validateAccounts(List<PostingBatch> newProtocolPostings, Map<Long, StatefulAccount> domainAccountMap) throws TException {
         Map<Posting, String> errors = new HashMap<>();
         for (PostingBatch newProtocolBatch : newProtocolPostings) {
             for (Posting posting : newProtocolBatch.getPostings()) {

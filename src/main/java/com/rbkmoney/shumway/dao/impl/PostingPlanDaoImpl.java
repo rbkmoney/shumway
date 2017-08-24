@@ -105,23 +105,6 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
     }
 
     @Override
-    public Map<Long, List<PostingLog>> getPostingLogs(String planId, Collection<Long> batchIds, PostingOperation operation) throws DaoException {
-        if (batchIds.isEmpty()) {
-            return Collections.emptyMap();
-        } else {
-            final String sql = "select * from shm.posting_log where plan_id = :plan_id and batch_id in ("+ collectionToCommaDelimitedString(batchIds)+") and operation = :operation::shm.posting_operation_type";
-            MapSqlParameterSource params = new MapSqlParameterSource();
-            params.addValue("plan_id", planId);
-            params.addValue("operation", operation.getKey());
-            try {
-                return getNamedParameterJdbcTemplate().query(sql, params, postingRowMapper).stream().collect(Collectors.groupingBy(postingLog -> postingLog.getBatchId()));
-            } catch (NestedRuntimeException e) {
-                throw new DaoException(e);
-            }
-        }
-    }
-
-    @Override
     public void addPostingLogs(List<PostingLog> postingLogs) throws DaoException {
         final String sql = "INSERT INTO shm.posting_log(plan_id, batch_id, from_account_id, to_account_id, creation_time, amount, curr_sym_code, operation, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, postingLogs, BATCH_SIZE,
