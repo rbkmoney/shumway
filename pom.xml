@@ -21,7 +21,7 @@
         <server.port>8022</server.port>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <postgresql.jdbc.version>9.4.1212</postgresql.jdbc.version>
-        <dockerfile.base.service.tag>fe3741dc82cd694143baf6d1a1969bd4a537c280</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>60ec6caf5c52778c9e89075656cca2ceeee4d0dd</dockerfile.base.service.tag>
         <damsel.version>1.161-cff3139</damsel.version>
         <shared.resources.version>0.2.1</shared.resources.version>
 
