@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.5</version>
+    <version>1.1.6</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -21,7 +21,7 @@
         <server.port>8022</server.port>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <postgresql.jdbc.version>9.4.1212</postgresql.jdbc.version>
-        <dockerfile.base.service.tag>60ec6caf5c52778c9e89075656cca2ceeee4d0dd</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>22c57470c4fc47161894f036b7cf9d70f42b75f5</dockerfile.base.service.tag>
         <damsel.version>1.161-cff3139</damsel.version>
         <shared.resources.version>0.2.1</shared.resources.version>
 
