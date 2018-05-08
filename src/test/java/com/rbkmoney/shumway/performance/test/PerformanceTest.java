@@ -25,7 +25,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @TestPropertySource(locations="classpath:test.properties")
 public class PerformanceTest {
-    private static final int NUMBER_OF_THREADS = 8;
+    private static final int NUMBER_OF_THREADS = 4;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
     private static final int NUMBER_OF_ACCS = 3;
     private static final int AMOUNT = 1000;

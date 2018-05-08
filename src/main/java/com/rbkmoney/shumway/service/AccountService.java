@@ -95,14 +95,14 @@ public class AccountService {
                 final long savedDiff = savedDiffsMap.get(accId);
                 final long mergedDiff = mergedDiffsMap.get(accId);
 
-                boolean signChanged = (savedDiff < 0 && mergedDiff > 0) || (savedDiff > 0 && mergedDiff < 0);
+                boolean signChanged = (savedDiff < 0 && mergedDiff >= 0) || (savedDiff >= 0 && mergedDiff < 0);
                 if (signChanged) {
-                    if (savedDiff > 0) {
-                        negDiff = mergedDiff;
-                        posDiff = -savedDiff;
-                    } else {
+                    if (savedDiff < 0) {
                         negDiff = -savedDiff;
                         posDiff = mergedDiff;
+                    } else {
+                        negDiff = mergedDiff;
+                        posDiff = -savedDiff;
                     }
                 } else {
                     if (mergedDiff < 0) {

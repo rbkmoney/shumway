@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -614,6 +615,76 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         assertEquals(planLog1, client.hold(new PostingPlanChange(planId, postingBatch1)));
 
 
+    }
+
+    @Test
+    public void testSeparateBatchCollapsing() throws TException {
+        long planIdNum = System.currentTimeMillis();
+        String planId = "" + planIdNum;
+        long fromAccountId1 = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId1 = client.createAccount(new AccountPrototype("RU"));
+
+        Posting posting = new Posting(fromAccountId1, toAccountId1, 30, "RU", "Test");
+        PostingBatch postingBatch = new PostingBatch(1, asList(posting));
+
+        PostingPlanLog planLog = client.hold(new PostingPlanChange(planId, postingBatch));
+
+        Posting reversePosting = new Posting(toAccountId1, fromAccountId1, 30, "RU", "Test");
+        PostingBatch reversePostingBatch = new PostingBatch(2, asList(reversePosting));
+
+        PostingPlanLog reversePlanLog = client.hold(new PostingPlanChange(planId, reversePostingBatch));
+
+        PostingPlanLog commitLog = client.commitPlan(new PostingPlan(planId, Arrays.asList(postingBatch, reversePostingBatch)));
+        assertEquals(2, commitLog.getAffectedAccounts().size());
+
+        Consumer<Account> check = ac -> {
+            assertEquals(0, ac.getMaxAvailableAmount());
+            assertEquals(0, ac.getMinAvailableAmount());
+            assertEquals(0, ac.getOwnAmount());
+        };
+
+        Stream.of(commitLog.getAffectedAccounts().get(fromAccountId1), commitLog.getAffectedAccounts().get(toAccountId1))
+                .forEach(check);
+
+        planId = "" + (planIdNum + 1);
+
+        PostingBatch combinedBatch = new PostingBatch(1, asList(posting, reversePosting));
+        PostingPlanLog combinedPlanLog = client.hold(new PostingPlanChange(planId, combinedBatch));
+
+        Stream.of(combinedPlanLog.getAffectedAccounts().get(fromAccountId1), combinedPlanLog.getAffectedAccounts().get(toAccountId1))
+                .forEach(check);
+
+        PostingPlanLog commitCombinedPlanLog = client.commitPlan(new PostingPlan(planId, asList(combinedBatch)));
+
+        Stream.of(commitCombinedPlanLog.getAffectedAccounts().get(fromAccountId1), commitCombinedPlanLog.getAffectedAccounts().get(toAccountId1))
+                .forEach(check);
+    }
+
+    @Test
+    public void testCombinedBatchCollapsing() throws TException {
+        String planId = "" + System.currentTimeMillis();
+        long fromAccountId1 = client.createAccount(new AccountPrototype("RU"));
+        long toAccountId1 = client.createAccount(new AccountPrototype("RU"));
+
+        Posting posting = new Posting(fromAccountId1, toAccountId1, 30, "RU", "Test");
+        PostingBatch postingBatch = new PostingBatch(1, asList(posting));
+
+        PostingPlanLog planLog = client.hold(new PostingPlanChange(planId, postingBatch));
+
+        Posting reversePosting = new Posting(toAccountId1, fromAccountId1, 30, "RU", "Test");
+        PostingBatch reversePostingBatch = new PostingBatch(2, asList(reversePosting));
+
+        PostingPlanLog reversePlanLog = client.hold(new PostingPlanChange(planId, reversePostingBatch));
+
+        PostingPlanLog commitLog = client.commitPlan(new PostingPlan(planId, Arrays.asList(postingBatch, reversePostingBatch)));
+        assertEquals(2, commitLog.getAffectedAccounts().size());
+
+        Stream.of(commitLog.getAffectedAccounts().get(fromAccountId1), commitLog.getAffectedAccounts().get(toAccountId1))
+                .forEach(ac -> {
+                    assertEquals(0, ac.getMaxAvailableAmount());
+                    assertEquals(0, ac.getMinAvailableAmount());
+                    assertEquals(0, ac.getOwnAmount());
+                });
     }
 
 
