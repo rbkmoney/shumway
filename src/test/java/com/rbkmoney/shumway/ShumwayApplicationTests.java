@@ -660,33 +660,6 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
                 .forEach(check);
     }
 
-    @Test
-    public void testCombinedBatchCollapsing() throws TException {
-        String planId = "" + System.currentTimeMillis();
-        long fromAccountId1 = client.createAccount(new AccountPrototype("RU"));
-        long toAccountId1 = client.createAccount(new AccountPrototype("RU"));
-
-        Posting posting = new Posting(fromAccountId1, toAccountId1, 30, "RU", "Test");
-        PostingBatch postingBatch = new PostingBatch(1, asList(posting));
-
-        PostingPlanLog planLog = client.hold(new PostingPlanChange(planId, postingBatch));
-
-        Posting reversePosting = new Posting(toAccountId1, fromAccountId1, 30, "RU", "Test");
-        PostingBatch reversePostingBatch = new PostingBatch(2, asList(reversePosting));
-
-        PostingPlanLog reversePlanLog = client.hold(new PostingPlanChange(planId, reversePostingBatch));
-
-        PostingPlanLog commitLog = client.commitPlan(new PostingPlan(planId, Arrays.asList(postingBatch, reversePostingBatch)));
-        assertEquals(2, commitLog.getAffectedAccounts().size());
-
-        Stream.of(commitLog.getAffectedAccounts().get(fromAccountId1), commitLog.getAffectedAccounts().get(toAccountId1))
-                .forEach(ac -> {
-                    assertEquals(0, ac.getMaxAvailableAmount());
-                    assertEquals(0, ac.getMinAvailableAmount());
-                    assertEquals(0, ac.getOwnAmount());
-                });
-    }
-
 
     public static AccounterSrv.Iface createClient(String url) {
         try {
