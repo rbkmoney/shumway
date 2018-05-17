@@ -2,6 +2,7 @@ package com.rbkmoney.shumway;
 
 import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.damsel.base.InvalidRequest;
+import com.rbkmoney.geck.common.util.TypeUtil;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
@@ -10,6 +11,7 @@ import org.junit.Test;
 
 import javax.annotation.PostConstruct;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,6 +32,20 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
     @PostConstruct
     public void init() {
         client = createClient("http://localhost:" + port + "/accounter");
+    }
+
+    @Test
+    public void testCreationTimeSupport() throws TException {
+        AccountPrototype prototype = new AccountPrototype("RUB");
+        prototype.setCreationTime(TypeUtil.temporalToString(Instant.EPOCH));
+        long id = client.createAccount(prototype);
+        Account account = client.getAccountByID(id);
+        assertEquals(Instant.EPOCH, TypeUtil.stringToInstant(account.getCreationTime()));
+
+        prototype.setCreationTime(null);
+        id = client.createAccount(prototype);
+        account = client.getAccountByID(id);
+        assertTrue(account.isSetCreationTime());
     }
 
     @Test
