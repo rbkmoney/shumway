@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.8</version>
+    <version>1.1.9</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -49,6 +49,7 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
+            <version>3.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.jooq</groupId>
