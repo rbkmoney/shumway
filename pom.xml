@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.9</version>
+    <version>1.1.10</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -113,7 +113,7 @@
         <dependency>
             <groupId>com.rbkmoney.woody</groupId>
             <artifactId>woody-thrift</artifactId>
-            <version>1.1.4</version>
+            <version>1.1.15</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>
