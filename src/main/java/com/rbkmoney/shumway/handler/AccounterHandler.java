@@ -4,9 +4,11 @@ import com.rbkmoney.damsel.accounter.*;
 import com.rbkmoney.damsel.accounter.Account;
 import com.rbkmoney.damsel.accounter.PostingPlanLog;
 import com.rbkmoney.damsel.base.InvalidRequest;
+import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.*;
 import com.rbkmoney.shumway.service.AccountService;
 import com.rbkmoney.shumway.service.PostingPlanService;
+import com.rbkmoney.woody.api.flow.error.WUnavailableResultException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +73,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
         } catch (Exception e) {
             log.error("Request processing error: ", e);
             if (e instanceof TransactionException) {
-                throw e;
+                throw new WUnavailableResultException(e);
             } else if (e.getCause() instanceof TException) {
                 throw (TException) e.getCause();
             } else {
@@ -146,6 +148,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
             domainPostingPlan = planService.getSharedPostingPlan(planId);
         } catch (Exception e) {
             log.error("Failed to get posting plan log", e);
+            if (e instanceof DaoException) {
+                throw new WUnavailableResultException(e);
+            }
             throw new TException(e);
         }
         if (domainPostingPlan == null) {
@@ -157,6 +162,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
             domainBatchLogs = planService.getPostingLogs(planId, PostingOperation.HOLD);
         } catch (Exception e) {
             log.error("Failed to get posting logs", e);
+            if (e instanceof DaoException) {
+                throw new WUnavailableResultException(e);
+            }
             throw new TException(e);
         }
         List<PostingBatch> protocolBatchList = domainBatchLogs.entrySet().stream().map(entry -> convertFromDomainToBatch(entry.getKey(), entry.getValue())).collect(Collectors.toList());
@@ -174,6 +182,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
             response = accountService.createAccount(domainPrototype);
         } catch (Exception e) {
             log.error("Failed to create account", e);
+            if (e instanceof DaoException) {
+                throw new WUnavailableResultException(e);
+            }
             throw new TException(e);
         }
         log.info("Response: {}", response);
@@ -188,6 +199,9 @@ public class AccounterHandler implements AccounterSrv.Iface {
             domainAccount = accountService.getStatefulAccount(id);
         } catch (Exception e) {
             log.error("Failed to get account", e);
+            if (e instanceof DaoException) {
+                throw new WUnavailableResultException(e);
+            }
             throw new TException(e);
         }
         if (domainAccount == null) {
