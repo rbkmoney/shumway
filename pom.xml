@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.11</version>
+    <version>1.1.13</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -134,6 +134,11 @@
             <groupId>com.rbkmoney.geck</groupId>
             <artifactId>common</artifactId>
             <version>0.6.9</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rbkmoney</groupId>
+            <artifactId>spring-boot-starter-metrics-statsd</artifactId>
+            <version>1.0.1</version>
         </dependency>
         <!--Test libs-->
         <dependency>
