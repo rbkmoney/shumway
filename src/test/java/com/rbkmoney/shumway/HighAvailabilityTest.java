@@ -9,8 +9,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.embedded.LocalServerPort;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -25,7 +25,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-@TestPropertySource(locations="classpath:test.properties")
+@TestPropertySource(locations = "classpath:test.properties")
 @Slf4j
 public class HighAvailabilityTest {
     private static final int NUMBER_OF_THREADS = 8;
@@ -77,7 +77,7 @@ public class HighAvailabilityTest {
         log.warn("Total time: {}ms", (System.currentTimeMillis() - totalStartTime));
     }
 
-    private int getPort(){
+    private int getPort() {
         return port;
     }
 }
