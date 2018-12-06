@@ -2,9 +2,9 @@ package com.rbkmoney.shumway;
 
 import org.junit.ClassRule;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.util.EnvironmentTestUtils;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.annotation.DirtiesContext;
@@ -22,9 +22,9 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ContextConfiguration(classes = ShumwayApplication.class, initializers = AbstractIntegrationTest.Initializer.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-public class AbstractIntegrationTest {
+public abstract class AbstractIntegrationTest {
     @ClassRule
-    public static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:9.6");
+    public static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:10.5");
 
     public static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
@@ -33,27 +33,28 @@ public class AbstractIntegrationTest {
         }
 
         private static void initDockerEnv(ConfigurableApplicationContext configurableApplicationContext) {
-            EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
+            TestPropertyValues.of(
                     "spring.datasource.url=" + postgres.getJdbcUrl(),
                     "spring.datasource.username=" + postgres.getUsername(),
                     "spring.datasource.password=" + postgres.getPassword(),
                     "flyway.url=" + postgres.getJdbcUrl(),
                     "flyway.user=" + postgres.getUsername(),
                     "flyway.password=" + postgres.getPassword()
-            );        }
+            ).applyTo(configurableApplicationContext);
+        }
 
         private static void initLocalEnv(ConfigurableApplicationContext configurableApplicationContext) {
-            EnvironmentTestUtils.addEnvironment("testcontainers", configurableApplicationContext.getEnvironment(),
-                    "spring.datasource.url=" + "jdbc:postgresql://localhost:32778/accounter",
-                    "spring.datasource.username=" + "postgres",
-                    "spring.datasource.password=" + "",
-                    "flyway.url=" + "jdbc:postgresql://localhost:32778/accounter",
-                    "flyway.user=" + "postgres",
-                    "flyway.password=" + ""
-            );
+            TestPropertyValues.of(
+                    "spring.datasource.url=jdbc:postgresql://localhost:32778/accounter",
+                    "spring.datasource.username=postgres",
+                    "spring.datasource.password=",
+                    "flyway.url=jdbc:postgresql://localhost:32778/accounter",
+                    "flyway.user=postgres",
+                    "flyway.password="
+            ).applyTo(configurableApplicationContext);
         }
     }
 
-    @Value("${local.server.port}")
+    @LocalServerPort
     protected int port;
 }
