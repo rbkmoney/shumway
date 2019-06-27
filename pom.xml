@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>shumway</artifactId>
-    <version>1.1.14</version>
+    <version>1.1.15</version>
     <packaging>jar</packaging>
 
     <name>shumway</name>
@@ -13,7 +13,7 @@
     <parent>
         <groupId>com.rbkmoney</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.1.0.RELEASE</version>
+        <version>2.1.1.RELEASE</version>
     </parent>
 
     <properties>
@@ -21,9 +21,10 @@
         <server.port>8022</server.port>
         <exposed.ports>${server.port}</exposed.ports>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <dockerfile.base.service.tag>2a8b44ac628c1bdb729abd04ed7a2a54676e574b</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>c0d0900ec19c907d866f8360031a836049985110</dockerfile.base.service.tag>
+        <dockerfile.registry>${env.REGISTRY}</dockerfile.registry>
         <damsel.version>1.234-5b4e65d</damsel.version>
-        <shared.resources.version>0.3.2</shared.resources.version>
+        <shared.resources.version>0.3.6</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
         <db.host.port>5432</db.host.port>
