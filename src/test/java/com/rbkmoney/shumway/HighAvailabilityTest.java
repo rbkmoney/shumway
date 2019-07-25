@@ -30,7 +30,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 public class HighAvailabilityTest {
     private static final int NUMBER_OF_THREADS = 8;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
-    private static final int NUMBER_OF_ACCS = 40000;
+    private static final int NUMBER_OF_ACCS = 2;
     private static final int AMOUNT = 1000;
 
 //    @Autowired
@@ -71,8 +71,8 @@ public class HighAvailabilityTest {
 
         List<Long> accs = createAccs(NUMBER_OF_ACCS, supportAccountDao);
 
-        startCircleTransfer(client, accs, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT);
-        startCircleCheck(client, accs, 0);
+        startCircleTransfer(client, accs, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT, 10000);
+//        startCircleCheck(client, accs, 0);
 
         log.warn("Total time: {}ms", (System.currentTimeMillis() - totalStartTime));
     }
