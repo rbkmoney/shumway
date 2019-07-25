@@ -33,7 +33,7 @@ public class HighAvailabilityTest {
     private static final int NUMBER_OF_ACCS = 40000;
     private static final int AMOUNT = 1000;
 
-    @Autowired
+//    @Autowired
     AccounterSrv.Iface client;
 
     @Autowired
@@ -50,7 +50,7 @@ public class HighAvailabilityTest {
 //            .build();
 
     @Test
-    @Ignore
+//    @Ignore
     public void testRemote() throws URISyntaxException, TException, InterruptedException {
         THSpawnClientBuilder clientBuilder = new THSpawnClientBuilder().withAddress(new URI("http://localhost:" + getPort() + "/accounter"));
         client = clientBuilder.build(AccounterSrv.Iface.class);

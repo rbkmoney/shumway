@@ -69,12 +69,13 @@ public class AccountUtils {
         int transferCounter = 0;
         for(int j=0; j < numberOfRounds; j++) {
             for (int i = 0; i < accs.size(); i++) {
-                final long from = accs.get(i);
-                final long to = accs.get((i + 1) % accs.size());
+                final long from = accs.get(0);
+                final long to = accs.get(1);
                 final int transferId = transferCounter++;
 
                 executorService.submit(() -> makeTransfer(client, from, to, amount, startTime + "_"+ transferId));
             }
+            log.warn("Submitted: {}", j);
         }
         log.warn("All transactions submitted.");
 

@@ -20,15 +20,14 @@ import java.util.List;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-@Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @TestPropertySource(locations="classpath:test.properties")
 public class PerformanceTest {
     private static final int NUMBER_OF_THREADS = 4;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
-    private static final int NUMBER_OF_ACCS = 3;
-    private static final int AMOUNT = 1000;
+    private static final int NUMBER_OF_ACCS = 2;
+    private static final int AMOUNT = 10000;
 
     private static final String DUMP_PATH = "10_000.bak";
     private static PostgresUtils utils;
@@ -99,7 +98,7 @@ public class PerformanceTest {
     @Test
     public void test() throws InterruptedException {
         List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
-        int numberOfRounds = 1000;
+        int numberOfRounds = 10000;
         long startTime = System.currentTimeMillis();
         double avgTime = AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT, numberOfRounds);
 
