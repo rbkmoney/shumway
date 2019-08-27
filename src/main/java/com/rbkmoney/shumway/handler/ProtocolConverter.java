@@ -74,4 +74,5 @@ public class ProtocolConverter {
         return new PostingBatch(batchId, domainPostings.stream().map(ProtocolConverter::convertFromDomainToPosting).collect(Collectors.toList()));
     }
 
+
 }
