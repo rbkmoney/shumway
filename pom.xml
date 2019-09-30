@@ -27,7 +27,7 @@
         <shared.resources.version>0.3.6</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
-        <db.host.port>5431</db.host.port>
+        <db.host.port>5432</db.host.port>
         <db.name>shumway</db.name>
         <db.url>jdbc:postgresql://${db.host.name}:${db.host.port}/${db.name}</db.url>
         <db.user>postgres</db.user>
