@@ -66,7 +66,8 @@ public class ShumpuneProtocolConverter {
                 .setId(accountByID.getId())
                 .setMaxAvailableAmount(accountByID.getMaxAvailableAmount())
                 .setMinAvailableAmount(accountByID.getMinAvailableAmount())
-                .setOwnAmount(accountByID.getOwnAmount());
+                .setOwnAmount(accountByID.getOwnAmount())
+                .setClock(Clock.latest(new LatestClock()));
     }
 
     public static com.rbkmoney.damsel.accounter.AccountPrototype convertToOldAccountPrototype(AccountPrototype prototype) {

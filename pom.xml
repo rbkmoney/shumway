@@ -34,7 +34,7 @@
         <db.password>postgres</db.password>
         <db.schema>shm</db.schema>
 
-        <shumpune-proto.version>1.5-9896504</shumpune-proto.version>
+        <shumpune-proto.version>1.15-4c87f03</shumpune-proto.version>
     </properties>
 
     <dependencies>
