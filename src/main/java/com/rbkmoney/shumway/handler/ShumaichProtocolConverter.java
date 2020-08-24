@@ -1,9 +1,12 @@
 package com.rbkmoney.shumway.handler;
 
 import com.rbkmoney.damsel.shumaich.*;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import java.util.stream.Collectors;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ShumaichProtocolConverter {
 
     public static com.rbkmoney.damsel.shumpune.PostingBatch convertToOldBatch(com.rbkmoney.damsel.shumaich.PostingBatch batch) {
@@ -20,14 +23,6 @@ public class ShumaichProtocolConverter {
                         .collect(Collectors.toList()));
     }
 
-    public static com.rbkmoney.damsel.shumaich.Posting convertToNewPosting(com.rbkmoney.damsel.shumpune.Posting posting) {
-        return new com.rbkmoney.damsel.shumaich.Posting()
-                .setAmount(posting.getAmount())
-                .setCurrencySymbolicCode(posting.getCurrencySymCode())
-                .setDescription(posting.getDescription())
-                .setFromAccount(new Account(posting.getFromId(), posting.getCurrencySymCode()))
-                .setToAccount(new Account(posting.getToId(), posting.getCurrencySymCode()));
-    }
 
     public static com.rbkmoney.damsel.shumpune.PostingPlan convertToOldPostingPlan(com.rbkmoney.damsel.shumaich.PostingPlan plan) {
         return new com.rbkmoney.damsel.shumpune.PostingPlan()
