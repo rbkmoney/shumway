@@ -32,14 +32,6 @@ public class ShumaichProtocolConverter {
                 .setId(plan.getId());
     }
 
-    public static com.rbkmoney.damsel.shumaich.PostingBatch convertToNewPostingBatch(com.rbkmoney.damsel.shumpune.PostingBatch postingBatch) {
-        return new com.rbkmoney.damsel.shumaich.PostingBatch()
-                .setId(postingBatch.getId())
-                .setPostings(postingBatch.getPostings().stream()
-                        .map(ShumaichProtocolConverter::convertToNewPosting)
-                        .collect(Collectors.toList()));
-    }
-
     public static com.rbkmoney.damsel.shumpune.PostingPlanChange convertToOldPostingPlanChange(PostingPlanChange postingPlanChange) {
         PostingBatch batch = postingPlanChange.getBatch();
         return new com.rbkmoney.damsel.shumpune.PostingPlanChange()
