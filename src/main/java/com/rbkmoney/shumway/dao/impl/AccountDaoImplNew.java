@@ -6,26 +6,23 @@ import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
 import com.rbkmoney.shumway.domain.StatefulAccount;
-import org.apache.tomcat.jni.Local;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcDaoSupport;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Created by vpankrashkin on 17.09.16.
- */
 public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements AccountDao {
     private final AccountMapper accountMapper = new AccountMapper();
     private final StatefulAccountMapper statefulAccountMapper = new StatefulAccountMapper();
@@ -93,10 +90,9 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
 
     @Override
     public Account get(long id) {
-        final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id=:id";
-        MapSqlParameterSource params = new MapSqlParameterSource("id", id);
+        final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id = :id";
         try {
-            return getNamedParameterJdbcTemplate().queryForObject(sql, params, accountMapper);
+            return getNamedParameterJdbcTemplate().queryForObject(sql, new MapSqlParameterSource("id", id), accountMapper);
         } catch (EmptyResultDataAccessException e) {
             return null;
         } catch (NestedRuntimeException e) {
@@ -110,9 +106,8 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             return Collections.emptyList();
         } else {
             final String sql = "SELECT id, curr_sym_code, creation_time, description FROM shm.account WHERE id in (:ids)";
-            MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
             try {
-                return getNamedParameterJdbcTemplate().query(sql, params, accountMapper);
+                return getNamedParameterJdbcTemplate().query(sql, new MapSqlParameterSource("ids", ids), accountMapper);
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
             }
@@ -125,10 +120,8 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             return Collections.emptyMap();
         } else {
             final String sql = "select * from shm.get_acc_stat(Array [ :ids ])";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("ids", ids);
             try {
-                return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
+                return getNamedParameterJdbcTemplate().query(sql, new MapSqlParameterSource("ids", ids), statefulAccountMapper)
                         .stream()
                         .collect(Collectors.toMap(Account::getId, acc -> acc));
             } catch (NestedRuntimeException e) {
@@ -142,10 +135,11 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         if (ids.isEmpty()) {
             return Collections.emptyMap();
         } else {
-            MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
-            params.addValue("batch_id", batchId);
-            params.addValue("ids", ids);
             final String sql = "select * from shm.get_acc_stat_upto(Array[ :ids ], :plan_id, :batch_id)";
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("ids", ids)
+                    .addValue("plan_id", planId)
+                    .addValue("batch_id", batchId);
             try {
                 return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
                         .stream()
@@ -162,10 +156,8 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             return Collections.emptyMap();
         } else {
             final String sql = "select * from shm.get_exclusive_acc_stat(Array[ :ids ])";
-            MapSqlParameterSource params = new MapSqlParameterSource()
-                    .addValue("ids", ids);
             try {
-                return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
+                return getNamedParameterJdbcTemplate().query(sql, new MapSqlParameterSource("ids", ids), statefulAccountMapper)
                         .stream()
                         .collect(Collectors.toMap(Account::getId, acc -> acc));
             } catch (NestedRuntimeException e) {
@@ -186,10 +178,9 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
                     "min_accumulated  " +
                     "from shm.account_log al " +
                     "join (values (:ids)) as t (acId) " +
-                    "on al.id = (select max(id) from shm.account_log  where account_id=t.acId);";
-            MapSqlParameterSource params = new MapSqlParameterSource("ids", accountIds);
+                    "on al.id = (select max(id) from shm.account_log  where account_id = t.acId);";
             try {
-                return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, params, amountStatePairMapper)
+                return fillAbsentValues(accountIds, getNamedParameterJdbcTemplate().query(sql, new MapSqlParameterSource("ids", accountIds), amountStatePairMapper)
                         .stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
             } catch (NestedRuntimeException e) {
