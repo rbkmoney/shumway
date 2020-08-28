@@ -16,10 +16,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -127,8 +124,9 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         if (ids.isEmpty()) {
             return Collections.emptyMap();
         } else {
-            final String sql = "select * from shm.get_acc_stat(Array[:ids])";
-            MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
+            final String sql = "select * from shm.get_acc_stat(Array [ :ids ])";
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("ids", ids);
             try {
                 return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
                         .stream()
@@ -147,7 +145,7 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             MapSqlParameterSource params = new MapSqlParameterSource("plan_id", planId);
             params.addValue("batch_id", batchId);
             params.addValue("ids", ids);
-            final String sql = "select * from shm.get_acc_stat_upto(Array[:ids], :plan_id, :batch_id)";
+            final String sql = "select * from shm.get_acc_stat_upto(Array[ :ids ], :plan_id, :batch_id)";
             try {
                 return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
                         .stream()
@@ -163,8 +161,9 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
         if (ids.isEmpty()) {
             return Collections.emptyMap();
         } else {
-            final String sql = "select * from shm.get_exclusive_acc_stat(Array[:ids])";
-            MapSqlParameterSource params = new MapSqlParameterSource("ids", ids);
+            final String sql = "select * from shm.get_exclusive_acc_stat(Array[ :ids ])";
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("ids", ids);
             try {
                 return getNamedParameterJdbcTemplate().query(sql, params, statefulAccountMapper)
                         .stream()
