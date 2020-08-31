@@ -21,5 +21,4 @@ public interface AccountDao {
     Map<Long, StatefulAccount> getStatefulExclusive(Collection<Long> ids) throws DaoException;
     List<Account> get(Collection<Long> ids) throws DaoException;
     Map<Long, AccountState> getAccountStates(Collection<Long> accountIds) throws DaoException;
-    void create(Account prototype) throws DaoException;
 }
