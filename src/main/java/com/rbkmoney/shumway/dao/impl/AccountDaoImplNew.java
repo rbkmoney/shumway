@@ -6,7 +6,6 @@ import com.rbkmoney.shumway.domain.Account;
 import com.rbkmoney.shumway.domain.AccountLog;
 import com.rbkmoney.shumway.domain.AccountState;
 import com.rbkmoney.shumway.domain.StatefulAccount;
-import org.apache.tomcat.jni.Local;
 import org.springframework.core.NestedRuntimeException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
@@ -18,7 +17,6 @@ import org.springframework.util.StringUtils;
 import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -183,6 +181,24 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
             } catch (NestedRuntimeException e) {
                 throw new DaoException(e);
             }
+        }
+    }
+
+    @Override
+    public void create(Account prototype) throws DaoException {
+        final String sql = "INSERT INTO shm.account(id, curr_sym_code, creation_time, description) VALUES (:id, :curr_sym_code, :creation_time, :description) RETURNING id;";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("id", prototype.getId());
+        params.addValue("curr_sym_code", prototype.getCurrSymCode());
+        params.addValue("creation_time", toLocalDateTime(prototype.getCreationTime()), Types.OTHER);
+        params.addValue("description", prototype.getDescription());
+        try {
+            int updateCount = getNamedParameterJdbcTemplate().update(sql, params);
+            if (updateCount != 1) {
+                throw new DaoException("Account creation returned unexpected update count: " + updateCount);
+            }
+        } catch (NestedRuntimeException e) {
+            throw new DaoException(e);
         }
     }
 

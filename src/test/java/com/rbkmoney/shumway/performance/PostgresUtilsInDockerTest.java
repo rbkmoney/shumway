@@ -16,7 +16,7 @@ import java.io.IOException;
 public class PostgresUtilsInDockerTest {
     @ClassRule
     public static DockerComposeRule docker = DockerComposeRule.builder()
-            .file("src/test/resources/docker-compose.yml")
+            .file("src/test/resources/docker-docker-compose.yml")
             .logCollector(new FileLogCollector(new File("target/pglog")))
             .waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())
             .build();

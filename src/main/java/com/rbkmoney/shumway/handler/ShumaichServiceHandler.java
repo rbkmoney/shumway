@@ -1,25 +1,26 @@
 package com.rbkmoney.shumway.handler;
 
 import com.rbkmoney.damsel.shumaich.*;
+import com.rbkmoney.shumway.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.thrift.TException;
 import org.springframework.stereotype.Component;
-
-import javax.security.auth.login.AccountNotFoundException;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ShumaichServiceHandler implements AccounterSrv.Iface {
 
-   private final AccounterSrv.Iface shumaichClient;
-   private final ShumpuneServiceHandler shumpuneServiceHandler;
+    private final AccounterSrv.Iface shumaichClient;
+    private final ShumpuneServiceHandler shumpuneServiceHandler;
+    private final AccountService accountService;
 
     @Override
     public Clock hold(PostingPlanChange postingPlanChange, Clock clock) throws TException {
         log.info("Shumaich in shumway hold method called with postingPlanChange: {}", postingPlanChange);
         Clock holdClock = shumaichClient.hold(postingPlanChange, clock);
+        accountService.createAccountsIfDontExist(postingPlanChange);
         shumpuneServiceHandler.hold(ShumaichProtocolConverter.convertToOldPostingPlanChange(postingPlanChange));
         return holdClock;
     }
@@ -51,4 +52,5 @@ public class ShumaichServiceHandler implements AccounterSrv.Iface {
         log.info("Shumaich in shumway getAccountByID method called with accountId: {}", accountId);
         return shumaichClient.getAccountByID(accountId, clock);
     }
+
 }
