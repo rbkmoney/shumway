@@ -13,10 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.Instant;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
 
-public class AccountServiceTest extends AbstractIntegrationTest {
+public class AccountTest extends AbstractIntegrationTest {
 
     @Autowired
     AccountDao accountDao;
@@ -26,23 +25,35 @@ public class AccountServiceTest extends AbstractIntegrationTest {
 
     @Test
     public void accountsCreatedWithoutOrder() {
-        accountDao.add(new Account(10, Instant.now(), "RUB", null));
-        accountDao.add(new Account(11, Instant.now(), "RUB", null));
-        accountDao.add(new Account(12, Instant.now(), "RUB", null));
+        accountDao.create(new Account(10, Instant.now(), "RUB", null));
+        accountDao.create(new Account(11, Instant.now(), "RUB", null));
+        accountDao.create(new Account(12, Instant.now(), "RUB", null));
 
         assertEquals(3, accountDao.get(List.of(10L, 11L, 12L)).size());
     }
 
     @Test(expected = DaoException.class)
     public void accountAlreadyExisted() {
-        accountDao.add(new Account(10, Instant.now(), "RUB", null));
-        accountDao.add(new Account(10, Instant.now(), "RUB", null));
+        accountDao.create(new Account(10, Instant.now(), "RUB", null));
+        accountDao.create(new Account(10, Instant.now(), "RUB", null));
+    }
+
+    @Test
+    public void shouldIncrementOnAddAndGiveAsIsOnCreate() {
+        accountDao.add(new Account(0, Instant.now(), "RUB", null));
+        accountDao.add(new Account(0, Instant.now(), "RUB", null));
+        accountDao.create(new Account(100, Instant.now(), "RUB", null));
+        accountDao.create(new Account(101, Instant.now(), "RUB", null));
+        accountDao.add(new Account(0, Instant.now(), "RUB", null));
+
+        assertEquals(5, accountDao.get(List.of(1L, 2L, 3L, 100L, 101L)).size());
+
     }
 
     @Test
     public void createAccountOnHold() {
-        accountDao.add(new Account(200, Instant.now(), "RUB", null));
-        accountDao.add(new Account(300, Instant.now(), "RUB", null));
+        accountDao.create(new Account(200, Instant.now(), "RUB", null));
+        accountDao.create(new Account(300, Instant.now(), "RUB", null));
         accountService.createAccountsIfDontExist(
                 new PostingPlanChange("plan",
                         new PostingBatch(1L,

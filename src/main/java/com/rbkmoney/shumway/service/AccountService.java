@@ -204,7 +204,7 @@ public class AccountService {
         ids.stream()
                 .filter(id -> !storedIds.contains(id))
                 .map(id -> new Account(id, Instant.now(), postingPlanChange.getBatch().getPostings().get(0).getCurrencySymbolicCode(), null))
-                .forEach(accountDao::add);
+                .forEach(accountDao::create);
 
     }
 }

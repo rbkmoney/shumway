@@ -58,7 +58,4 @@ public abstract class AbstractIntegrationTest {
             ).applyTo(configurableApplicationContext);
         }
     }
-
-    @LocalServerPort
-    protected int port;
 }
