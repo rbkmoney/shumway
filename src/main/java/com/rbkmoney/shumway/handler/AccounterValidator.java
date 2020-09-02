@@ -184,6 +184,7 @@ public class AccounterValidator {
             }
         }
         if (!errors.isEmpty()) {
+            log.info("validation errors:{}", errors);
             throw new InvalidPostingParams(errors);
         }
     }
