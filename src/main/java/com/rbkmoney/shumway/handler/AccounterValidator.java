@@ -46,13 +46,7 @@ public class AccounterValidator {
             return false;
         } else if (posting.getToId() != postingLog.getToAccountId()) {
             return false;
-        } else if (!posting.getCurrencySymCode().equals(postingLog.getCurrSymCode())) {
-            return false;
-        } else if (!postingLog.getDescription().equals(postingLog.getDescription())) {
-            return false;
-        } else {
-            return true;
-        }
+        } else return posting.getCurrencySymCode().equals(postingLog.getCurrSymCode());
     };
 
     private static final BiFunction<Collection<Posting>, PostingLog, Boolean> containsPostingLog = (postings, postingLog) ->
@@ -184,7 +178,6 @@ public class AccounterValidator {
             }
         }
         if (!errors.isEmpty()) {
-            log.info("validation errors:{}", errors);
             throw new InvalidPostingParams(errors);
         }
     }
@@ -201,7 +194,7 @@ public class AccounterValidator {
             }
         } else {
             log.warn("Unable to change posting plan state: {} to new state: {}, [overridable: {}]", oldDomainPlanLog, receivedDomainPlanLog, isOverridable(oldDomainPlanLog.getLastOperation(), receivedDomainPlanLog.getLastOperation()));
-            return new InvalidRequest(Arrays.asList(String.format(AccounterValidator.POSTING_PLAN_STATE_CHANGE_ERR, receivedDomainPlanLog.getPlanId(), (oldDomainPlanLog == null ? "" : oldDomainPlanLog.getLastOperation()), receivedDomainPlanLog.getLastOperation())));
+            return new InvalidRequest(Arrays.asList(String.format(AccounterValidator.POSTING_PLAN_STATE_CHANGE_ERR, receivedDomainPlanLog.getPlanId(), oldDomainPlanLog.getLastOperation(), receivedDomainPlanLog.getLastOperation())));
         }
     }
 

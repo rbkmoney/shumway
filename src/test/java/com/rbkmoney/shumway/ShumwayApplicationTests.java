@@ -112,7 +112,7 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
 
         String planId = System.currentTimeMillis() + "";
         Posting posting = new Posting(id1, id2, 1, "RUB", "");
-        try {
+        try { // NOSONAR грязно но что поделать
             client.hold(new PostingPlanChange(planId, new PostingBatch(2, asList(posting))));
             client.hold(new PostingPlanChange(planId, new PostingBatch(1, asList(posting))));
             fail();
