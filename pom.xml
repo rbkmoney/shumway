@@ -23,8 +23,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <dockerfile.base.service.tag>c0d0900ec19c907d866f8360031a836049985110</dockerfile.base.service.tag>
         <dockerfile.registry>${env.REGISTRY}</dockerfile.registry>
-        <damsel.version>1.234-5b4e65d</damsel.version>
-        <shared.resources.version>0.3.6</shared.resources.version>
+        <damsel.version>1.449-e2de943</damsel.version>
+        <shared.resources.version>0.3.8</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
         <db.host.port>5432</db.host.port>
@@ -98,7 +98,7 @@
         <dependency>
             <groupId>com.rbkmoney.woody</groupId>
             <artifactId>woody-thrift</artifactId>
-            <version>1.1.15</version>
+            <version>1.1.22</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>
@@ -113,12 +113,12 @@
         <dependency>
             <groupId>com.rbkmoney.geck</groupId>
             <artifactId>common</artifactId>
-            <version>0.6.9</version>
+            <version>0.6.11</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>
             <artifactId>spring-boot-starter-metrics-statsd</artifactId>
-            <version>1.1.0</version>
+            <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>

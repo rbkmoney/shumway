@@ -19,11 +19,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.rbkmoney.shumway.handler.AccounterValidator.*;
 import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.*;
 
@@ -112,8 +112,9 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
 
         String planId = System.currentTimeMillis() + "";
         Posting posting = new Posting(id1, id2, 1, "RUB", "");
-        try { // NOSONAR грязно но что поделать
-            client.hold(new PostingPlanChange(planId, new PostingBatch(2, asList(posting))));
+
+        client.hold(new PostingPlanChange(planId, new PostingBatch(2, asList(posting))));
+        try {
             client.hold(new PostingPlanChange(planId, new PostingBatch(1, asList(posting))));
             fail();
         } catch (InvalidPostingParams e) {//todo invalid request expected here
@@ -245,7 +246,7 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             });
         }
 
-         checkPlanLog(() -> client.commitPlan(new PostingPlan(planId, pb)), planLog -> {
+        checkPlanLog(() -> client.commitPlan(new PostingPlan(planId, pb)), planLog -> {
             assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getOwnAmount());
             assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getMaxAvailableAmount());
             assertEquals(10L, planLog.getAffectedAccounts().get(acc1).getMinAvailableAmount());
@@ -613,7 +614,7 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             assertEquals(-43, planLog.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
             assertEquals(-43, planLog.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
         });
-     }
+    }
 
     @Test
     public void testRepeatableHold() throws TException {
