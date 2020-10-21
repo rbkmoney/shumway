@@ -190,18 +190,15 @@ public class AccountDaoImplNew extends NamedParameterJdbcDaoSupport implements A
     }
 
     @Override
-    public void create(Account prototype) throws DaoException {
-        final String sql = "INSERT INTO shm.account(id, curr_sym_code, creation_time, description) VALUES (:id, :curr_sym_code, :creation_time, :description);";
+    public void createIfNotExists(Account prototype) throws DaoException {
+        final String sql = "INSERT INTO shm.account(id, curr_sym_code, creation_time, description) VALUES (:id, :curr_sym_code, :creation_time, :description) ON CONFLICT DO NOTHING;";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("id", prototype.getId());
         params.addValue("curr_sym_code", prototype.getCurrSymCode());
         params.addValue("creation_time", toLocalDateTime(prototype.getCreationTime()), Types.OTHER);
         params.addValue("description", prototype.getDescription());
         try {
-            int updateCount = getNamedParameterJdbcTemplate().update(sql, params);
-            if (updateCount != 1) {
-                throw new DaoException("Account creation returned unexpected update count: " + updateCount);
-            }
+            getNamedParameterJdbcTemplate().update(sql, params);
         } catch (NestedRuntimeException e) {
             throw new DaoException(e);
         }
