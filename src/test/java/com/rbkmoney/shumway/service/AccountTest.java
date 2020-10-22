@@ -25,25 +25,26 @@ public class AccountTest extends AbstractIntegrationTest {
 
     @Test
     public void accountsCreatedWithoutOrder() {
-        accountDao.create(new Account(10, Instant.now(), "RUB", null));
-        accountDao.create(new Account(11, Instant.now(), "RUB", null));
-        accountDao.create(new Account(12, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(10, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(11, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(12, Instant.now(), "RUB", null));
 
         assertEquals(3, accountDao.get(List.of(10L, 11L, 12L)).size());
     }
 
-    @Test(expected = DaoException.class)
     public void accountAlreadyExisted() {
-        accountDao.create(new Account(10, Instant.now(), "RUB", null));
-        accountDao.create(new Account(10, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(10, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(10, Instant.now(), "RUB", null));
+
+        assertEquals(1, accountDao.get(List.of(10L)).size());
     }
 
     @Test
     public void shouldIncrementOnAddAndGiveAsIsOnCreate() {
         accountDao.add(new Account(0, Instant.now(), "RUB", null));
         accountDao.add(new Account(0, Instant.now(), "RUB", null));
-        accountDao.create(new Account(100, Instant.now(), "RUB", null));
-        accountDao.create(new Account(101, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(100, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(101, Instant.now(), "RUB", null));
         accountDao.add(new Account(0, Instant.now(), "RUB", null));
 
         assertEquals(5, accountDao.get(List.of(1L, 2L, 3L, 100L, 101L)).size());
@@ -52,8 +53,8 @@ public class AccountTest extends AbstractIntegrationTest {
 
     @Test
     public void createAccountOnHold() {
-        accountDao.create(new Account(200, Instant.now(), "RUB", null));
-        accountDao.create(new Account(300, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(200, Instant.now(), "RUB", null));
+        accountDao.createIfNotExists(new Account(300, Instant.now(), "RUB", null));
         accountService.createAccountsIfDontExist(
                 new PostingPlanChange("plan",
                         new PostingBatch(1L,
