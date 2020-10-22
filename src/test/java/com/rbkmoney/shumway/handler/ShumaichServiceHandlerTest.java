@@ -3,6 +3,7 @@ package com.rbkmoney.shumway.handler;
 import com.rbkmoney.damsel.shumaich.*;
 import com.rbkmoney.shumway.AbstractIntegrationTest;
 import com.rbkmoney.shumway.dao.AccountDao;
+import com.rbkmoney.shumway.domain.StatefulAccount;
 import org.apache.thrift.TException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,7 +40,7 @@ public class ShumaichServiceHandlerTest extends AbstractIntegrationTest {
 
     @Test
     public void createAccountOnMultipleHoldAtTheSameTime() throws TException, InterruptedException {
-        final ExecutorService executorService = Executors.newFixedThreadPool(2);
+        final ExecutorService executorService = Executors.newFixedThreadPool(10);
         final PostingPlanChange postingPlanChange = buildPostChangingPlan();
         Runnable holdTask = () -> {
             try {
@@ -47,8 +49,9 @@ public class ShumaichServiceHandlerTest extends AbstractIntegrationTest {
                 e.printStackTrace();
             }
         };
-        executorService.submit(holdTask);
-        executorService.submit(holdTask);
+        for (int i = 0; i < 10; i++) {
+            executorService.submit(holdTask);
+        }
         executorService.shutdown();
         executorService.awaitTermination(30, TimeUnit.SECONDS);
 
@@ -59,6 +62,8 @@ public class ShumaichServiceHandlerTest extends AbstractIntegrationTest {
                 .collect(Collectors.toList());
 
         final List<com.rbkmoney.shumway.domain.Account> accounts = accountDao.get(accountIds);
+        final Map<Long, StatefulAccount> stateful = accountDao.getStateful(accountIds);
+        Assert.assertEquals(postingPlanChange.getBatch().getPostings().size(), accountIds.size());
         for (com.rbkmoney.shumway.domain.Account account : accounts) {
             Assert.assertTrue(accounts.stream().anyMatch(acc -> acc.getId() == account.getId()));
         }
