@@ -21,7 +21,7 @@
         <server.port>8022</server.port>
         <exposed.ports>${server.port}</exposed.ports>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <dockerfile.base.service.tag>c0d0900ec19c907d866f8360031a836049985110</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>57e26d8ee999d7b0b50248c22afc63e6f926d276</dockerfile.base.service.tag>
         <dockerfile.registry>${env.REGISTRY}</dockerfile.registry>
         <damsel.version>1.449-e2de943</damsel.version>
         <shared.resources.version>0.3.8</shared.resources.version>
@@ -38,6 +38,7 @@
     </properties>
 
     <dependencies>
+
         <!--Thirdparty libs-->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -63,6 +64,11 @@
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
             <version>5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.6</version>
         </dependency>
         <!--Spring libs-->
         <dependency>
@@ -119,6 +125,11 @@
             <artifactId>shumpune-proto</artifactId>
             <version>${shumpune-proto.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.rbkmoney</groupId>
+            <artifactId>shumaich-proto</artifactId>
+            <version>1.40-be2c835</version>
+        </dependency>
         <!--Test libs-->
         <dependency>
             <groupId>org.hamcrest</groupId>
@@ -136,12 +147,6 @@
                     <artifactId>hamcrest-library</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.rbkmoney</groupId>
-            <artifactId>easyway</artifactId>
-            <version>0.2.0</version>
-            <scope>test</scope>
         </dependency>
         <!--
         download artifacts from https://dl.bintray.com/palantir/releases
@@ -162,14 +167,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>test</scope>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.14.3</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
-            <version>1.10.2</version>
+            <version>1.14.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -200,15 +205,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.1.1.RELEASE</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-remote-resources-plugin</artifactId>
-                <version>1.5</version>
+                <version>1.6.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.apache.maven.shared</groupId>

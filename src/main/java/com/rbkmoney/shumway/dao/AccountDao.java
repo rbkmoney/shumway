@@ -25,4 +25,6 @@ public interface AccountDao {
     List<Account> get(Collection<Long> ids) throws DaoException;
 
     Map<Long, AccountState> getAccountStates(Collection<Long> accountIds) throws DaoException;
+
+    void createIfNotExists(Account prototype) throws DaoException;
 }

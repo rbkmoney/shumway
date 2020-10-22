@@ -1,6 +1,7 @@
 package com.rbkmoney.shumway.service;
 
 import com.rbkmoney.damsel.accounter.PostingBatch;
+import com.rbkmoney.damsel.shumaich.PostingPlanChange;
 import com.rbkmoney.shumway.dao.AccountDao;
 import com.rbkmoney.shumway.domain.*;
 import org.slf4j.Logger;
@@ -155,7 +156,7 @@ public class AccountService {
     private AccountLog createAccountLog(long batchId, String ppId, long accId, PostingOperation op, AccountState accountState, long ownAmountDiff, long posDiff, long negDiff, long newDiff) {
         long newOwnAmount = accountState.getOwnAmount() + ownAmountDiff;
         return new AccountLog(0, batchId, ppId, Instant.now(), accId, op,
-                 newOwnAmount,
+                newOwnAmount,
                 accountState.getMaxAccumulatedDiff() + posDiff,
                 accountState.getMinAccumulatedDiff() + negDiff,
                 ownAmountDiff, negDiff, posDiff, newDiff < 0, false);
@@ -184,5 +185,26 @@ public class AccountService {
         }
 
         return merged;
+    }
+
+    public void createAccountsIfDontExist(PostingPlanChange postingPlanChange) {
+        List<Long> ids = postingPlanChange.getBatch().getPostings()
+                .stream()
+                .flatMap(posting -> List.of(posting.getFromAccount().getId(), posting.getToAccount().getId()).stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<Long> storedIds = accountDao.get(ids).stream()
+                .map(Account::getId)
+                .collect(Collectors.toList());
+
+        if (storedIds.size() == ids.size())
+            return;
+
+        ids.stream()
+                .filter(id -> !storedIds.contains(id))
+                .map(id -> new Account(id, Instant.now(), postingPlanChange.getBatch().getPostings().get(0).getCurrencySymbolicCode(), null))
+                .forEach(accountDao::createIfNotExists);
+
     }
 }

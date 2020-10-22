@@ -8,6 +8,7 @@ import org.apache.thrift.TException;
 import org.assertj.core.util.Lists;
 import org.hamcrest.Matcher;
 import org.junit.Test;
+import org.springframework.boot.web.server.LocalServerPort;
 
 import javax.annotation.PostConstruct;
 import java.net.URI;
@@ -28,6 +29,9 @@ import static org.junit.Assert.*;
 
 public class ShumwayApplicationTests extends AbstractIntegrationTest {
     private AccounterSrv.Iface client;
+
+    @LocalServerPort
+    public int port;
 
     @PostConstruct
     public void init() {

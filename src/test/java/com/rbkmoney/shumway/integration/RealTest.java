@@ -6,6 +6,7 @@ import com.rbkmoney.damsel.shumpune.Posting;
 import com.rbkmoney.damsel.shumpune.PostingBatch;
 import com.rbkmoney.damsel.shumpune.PostingPlan;
 import com.rbkmoney.damsel.shumpune.PostingPlanChange;
+import com.rbkmoney.shumway.AbstractIntegrationTest;
 import com.rbkmoney.shumway.ShumwayApplication;
 import com.rbkmoney.shumway.domain.PostingOperation;
 import com.rbkmoney.shumway.handler.ShumpuneServiceHandler;
@@ -34,7 +35,7 @@ import static java.sql.Types.OTHER;
 @Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = ShumwayApplication.class)
-public class RealTest extends DaoTestBase {
+public class RealTest extends AbstractIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
