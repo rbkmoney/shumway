@@ -21,7 +21,7 @@
         <server.port>8022</server.port>
         <exposed.ports>${server.port}</exposed.ports>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <dockerfile.base.service.tag>c0d0900ec19c907d866f8360031a836049985110</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>57e26d8ee999d7b0b50248c22afc63e6f926d276</dockerfile.base.service.tag>
         <dockerfile.registry>${env.REGISTRY}</dockerfile.registry>
         <damsel.version>1.449-e2de943</damsel.version>
         <shared.resources.version>0.3.8</shared.resources.version>
