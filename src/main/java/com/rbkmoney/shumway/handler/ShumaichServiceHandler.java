@@ -27,30 +27,46 @@ public class ShumaichServiceHandler implements AccounterSrv.Iface {
 
     @Override
     public Clock commitPlan(PostingPlan postingPlan, Clock clock) throws TException {
-        log.info("Shumaich in shumway commitPlan method called with postingPlan: {}", postingPlan);
-        Clock commitClock = shumaichClient.commitPlan(postingPlan, clock);
-        shumpuneServiceHandler.commitPlan(ShumaichProtocolConverter.convertToOldPostingPlan(postingPlan));
-        return commitClock;
+        try {
+            log.info("Shumaich in shumway commitPlan method called with postingPlan: {}", postingPlan);
+            Clock commitClock = shumaichClient.commitPlan(postingPlan, clock);
+            shumpuneServiceHandler.commitPlan(ShumaichProtocolConverter.convertToOldPostingPlan(postingPlan));
+            return commitClock;
+        } catch (NotReady ex) {
+            throw new NotReady(ex);
+        }
     }
 
     @Override
     public Clock rollbackPlan(PostingPlan postingPlan, Clock clock) throws TException {
-        log.info("Shumaich in shumway rollbackPlan method called with postingPlan: {}", postingPlan);
-        Clock rollbackClock = shumaichClient.rollbackPlan(postingPlan, clock);
-        shumpuneServiceHandler.rollbackPlan(ShumaichProtocolConverter.convertToOldPostingPlan(postingPlan));
-        return rollbackClock;
+        try {
+            log.info("Shumaich in shumway rollbackPlan method called with postingPlan: {}", postingPlan);
+            Clock rollbackClock = shumaichClient.rollbackPlan(postingPlan, clock);
+            shumpuneServiceHandler.rollbackPlan(ShumaichProtocolConverter.convertToOldPostingPlan(postingPlan));
+            return rollbackClock;
+        } catch (NotReady ex) {
+            throw new NotReady(ex);
+        }
     }
 
     @Override
     public Balance getBalanceByID(long accountId, Clock clock) throws TException {
-        log.info("Shumaich in shumway getBalanceByID method called with accountId: {}", accountId);
-        return shumaichClient.getBalanceByID(accountId, clock);
+        try {
+            log.info("Shumaich in shumway getBalanceByID method called with accountId: {}", accountId);
+            return shumaichClient.getBalanceByID(accountId, clock);
+        } catch (NotReady ex) {
+            throw new NotReady(ex);
+        }
     }
 
     @Override
     public Account getAccountByID(long accountId, Clock clock) throws TException {
-        log.info("Shumaich in shumway getAccountByID method called with accountId: {}", accountId);
-        return shumaichClient.getAccountByID(accountId, clock);
+        try {
+            log.info("Shumaich in shumway getAccountByID method called with accountId: {}", accountId);
+            return shumaichClient.getAccountByID(accountId, clock);
+        } catch (NotReady ex) {
+            throw new NotReady(ex);
+        }
     }
 
 }
