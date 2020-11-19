@@ -24,7 +24,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <dockerfile.base.service.tag>57e26d8ee999d7b0b50248c22afc63e6f926d276</dockerfile.base.service.tag>
         <dockerfile.registry>${env.REGISTRY}</dockerfile.registry>
-        <damsel.version>1.449-e2de943</damsel.version>
+        <damsel.version>1.461-e369307</damsel.version>
         <shared.resources.version>0.3.8</shared.resources.version>
 
         <db.host.name>localhost</db.host.name>
