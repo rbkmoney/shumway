@@ -1,0 +1,49 @@
+server:
+  port: @server.port@
+
+management:
+  security:
+    flag: false
+  server:
+    port: @management.port@
+  metrics:
+    export:
+      statsd:
+        flavor: etsy
+        enabled: false
+      prometheus:
+        enabled: false
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+info:
+  damsel:
+    version: '@damsel.version@'
+  stage: dev
+  version: '@project.version@'
+
+spring:
+  application:
+    name: '@project.name@'
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      idle-timeout: 30000
+      maximum-pool-size: 10
+    password: '@db.password@'
+    type: com.zaxxer.hikari.HikariDataSource
+    url: '@db.url@'
+    username: '@db.user@'
+
+db:
+  jdbc:
+    tr_timeout: 10000
