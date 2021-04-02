@@ -10,9 +10,9 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcDaoSupport;
-import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -23,16 +23,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.joining;
-import static org.springframework.util.StringUtils.collectionToCommaDelimitedString;
-
 /**
  * Created by vpankrashkin on 18.09.16.
  */
 public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements PostingPlanDao {
+    private static final int BATCH_SIZE = 1000;
+
     private final PostingPlanLogMapper planRowMapper = new PostingPlanLogMapper();
     private final PostingLogMapper postingRowMapper = new PostingLogMapper();
-    private static final int BATCH_SIZE = 1000;
 
     public PostingPlanDaoImpl(DataSource ds) {
         setDataSource(ds);
@@ -40,7 +38,13 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
     @Override
     public PostingPlanLog addOrUpdatePlanLog(PostingPlanLog planLog) throws DaoException {
-        final String sql = "insert into shm.plan_log (plan_id, last_batch_id, last_access_time, last_operation) values (:plan_id, :last_batch_id, :last_access_time, :last_operation::shm.posting_operation_type) on conflict (plan_id) do update set last_access_time=:last_access_time, last_operation=:last_operation::shm.posting_operation_type, last_batch_id=:last_batch_id where shm.plan_log.last_operation=:overridable_operation::shm.posting_operation_type returning *";
+        final String sql = "insert into shm.plan_log (plan_id, last_batch_id, last_access_time, last_operation) " +
+                "values (:plan_id, :last_batch_id, :last_access_time, :last_operation::shm.posting_operation_type) " +
+                "on conflict (plan_id) do update " +
+                "set last_access_time=:last_access_time, " +
+                "last_operation=:last_operation::shm.posting_operation_type, " +
+                "last_batch_id=:last_batch_id " +
+                "where shm.plan_log.last_operation=:overridable_operation::shm.posting_operation_type returning *";
         MapSqlParameterSource params = createParams(planLog, PostingOperation.HOLD);
         try {
             return getNamedParameterJdbcTemplate().queryForObject(sql, params, planRowMapper);
@@ -53,7 +57,15 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
     @Override
     public PostingPlanLog updatePlanLog(PostingPlanLog planLog, PostingOperation postingOperation) throws DaoException {
-        final String sql = "update shm.plan_log set last_access_time=:last_access_time, last_operation=:last_operation::shm.posting_operation_type, last_batch_id=:last_batch_id  where plan_id=:plan_id and shm.plan_log.last_operation in (:overridable_operation::shm.posting_operation_type, :same_operation::shm.posting_operation_type) returning *";
+        final String sql = "update shm.plan_log " +
+                "set last_access_time=:last_access_time, " +
+                "last_operation=:last_operation::shm.posting_operation_type, " +
+                "last_batch_id=:last_batch_id " +
+                "where plan_id=:plan_id " +
+                "and shm.plan_log.last_operation in (" +
+                ":overridable_operation::shm.posting_operation_type, " +
+                ":same_operation::shm.posting_operation_type" +
+                ") returning *";
         MapSqlParameterSource params = createParams(planLog, PostingOperation.HOLD);
         params.addValue("same_operation", postingOperation.getKey());
         try {
@@ -93,12 +105,14 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
     @Override
     public Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) throws DaoException {
-        final String sql = "select * from shm.posting_log where plan_id = :plan_id and operation = :operation::shm.posting_operation_type";
+        final String sql = "select * from shm.posting_log " +
+                "where plan_id = :plan_id and operation = :operation::shm.posting_operation_type";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("plan_id", planId);
         params.addValue("operation", operation.getKey());
         try {
-            return getNamedParameterJdbcTemplate().query(sql, params, postingRowMapper).stream().collect(Collectors.groupingBy(postingLog -> postingLog.getBatchId()));
+            return getNamedParameterJdbcTemplate().query(sql, params, postingRowMapper).stream()
+                    .collect(Collectors.groupingBy(postingLog -> postingLog.getBatchId()));
         } catch (NestedRuntimeException e) {
             throw new DaoException(e);
         }
@@ -106,7 +120,9 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
 
     @Override
     public void addPostingLogs(List<PostingLog> postingLogs) throws DaoException {
-        final String sql = "INSERT INTO shm.posting_log(plan_id, batch_id, from_account_id, to_account_id, creation_time, amount, curr_sym_code, operation, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?)";
+        final String sql = "INSERT INTO shm.posting_log(plan_id, batch_id, from_account_id, to_account_id, " +
+                "creation_time, amount, curr_sym_code, operation, description) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?::shm.posting_operation_type, ?)";
         int[][] updateCounts = getJdbcTemplate().batchUpdate(sql, postingLogs, BATCH_SIZE,
                 (ps, argument) -> {
                     ps.setString(1, argument.getPlanId());
@@ -124,7 +140,8 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
             for (int j = 0; j < updateCounts[i].length; ++j) {
                 checked = true;
                 if (updateCounts[i][j] != 1) {
-                    throw new DaoException("Posting log creation returned unexpected update count: " + updateCounts[i][j]);
+                    throw new DaoException(
+                            "Posting log creation returned unexpected update count: " + updateCounts[i][j]);
                 }
             }
         }
@@ -133,7 +150,8 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
         }
     }
 
-    private Map<Long, List<PostingLog>> fillAbsentValues(Collection<Long> batchIds, Map<Long, List<PostingLog>> stateMap) {
+    private Map<Long, List<PostingLog>> fillAbsentValues(Collection<Long> batchIds,
+                                                         Map<Long, List<PostingLog>> stateMap) {
         batchIds.stream().forEach(id -> stateMap.putIfAbsent(id, Collections.emptyList()));
         return stateMap;
     }
@@ -174,7 +192,8 @@ public class PostingPlanDaoImpl extends NamedParameterJdbcDaoSupport implements 
             String currSymCode = rs.getString("curr_sym_code");
             PostingOperation operation = PostingOperation.getValueByKey(rs.getString("operation"));
             String description = rs.getString("description");
-            return new PostingLog(id, planId, batchId, fromAccountId, toAccountId, amount, creationTime, operation, currSymCode, description);
+            return new PostingLog(id, planId, batchId, fromAccountId, toAccountId, amount, creationTime, operation,
+                    currSymCode, description);
         }
     }
 }

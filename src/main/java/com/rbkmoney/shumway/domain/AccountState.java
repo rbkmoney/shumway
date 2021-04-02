@@ -42,12 +42,16 @@ public class AccountState {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof AccountState)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AccountState)) {
+            return false;
+        }
         AccountState that = (AccountState) o;
-        return ownAmount == that.ownAmount &&
-                maxAccumulatedDiff == that.maxAccumulatedDiff &&
-                minAccumulatedDiff == that.minAccumulatedDiff;
+        return ownAmount == that.ownAmount
+                && maxAccumulatedDiff == that.maxAccumulatedDiff
+                && minAccumulatedDiff == that.minAccumulatedDiff;
     }
 
     @Override

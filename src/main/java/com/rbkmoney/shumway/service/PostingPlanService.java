@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -40,8 +39,11 @@ public class PostingPlanService {
 
     /**
      * @return Entry, contains old plan as a key and new/updated plan as a value
-     * */
-    public Map.Entry<PostingPlanLog, PostingPlanLog>  updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
+     */
+    public Map.Entry<PostingPlanLog, PostingPlanLog> updatePostingPlan(
+            PostingPlanLog planLog,
+            PostingOperation overridableOperation
+    ) {
         log.info("Get exclusive plan log: {}", planLog.getPlanId());
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
         log.info("Update plan log: {}, override op: {}", planLog.getPlanId(), overridableOperation);
@@ -52,7 +54,7 @@ public class PostingPlanService {
 
     /**
      * @return Entry, contains old plan as a key and new/updated plan as a value
-     * */
+     */
     public Map.Entry<PostingPlanLog, PostingPlanLog> createOrUpdatePostingPlan(PostingPlanLog planLog) {
         log.info("Get exclusive plan log: {}", planLog.getPlanId());
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());

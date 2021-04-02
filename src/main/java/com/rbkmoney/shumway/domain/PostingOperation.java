@@ -13,7 +13,7 @@ public enum PostingOperation {
 
     static {
         Map<String, PostingOperation> tmpMap = new HashMap<>();
-        for (PostingOperation operation: values()) {
+        for (PostingOperation operation : values()) {
             tmpMap.put(operation.getKey(), operation);
         }
         keyMap = tmpMap;

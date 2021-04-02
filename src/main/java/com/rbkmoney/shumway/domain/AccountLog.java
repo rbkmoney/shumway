@@ -22,7 +22,9 @@ public class AccountLog {
     private final boolean credit;
     private final boolean merged;
 
-    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId, PostingOperation operation, long ownAccumulated, long maxAccumulated, long minAccumulated, long ownDiff, long minDiff, long maxDiff, boolean credit, boolean merged) {
+    public AccountLog(long id, long batchId, String planId, Instant creationTime, long accountId,
+                      PostingOperation operation, long ownAccumulated, long maxAccumulated, long minAccumulated,
+                      long ownDiff, long minDiff, long maxDiff, boolean credit, boolean merged) {
         this.id = id;
         this.batchId = batchId;
         this.planId = planId;
@@ -97,28 +99,34 @@ public class AccountLog {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof AccountLog)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AccountLog)) {
+            return false;
+        }
         AccountLog that = (AccountLog) o;
-        return getId() == that.getId() &&
-                getBatchId() == that.getBatchId() &&
-                getAccountId() == that.getAccountId() &&
-                getOwnAccumulated() == that.getOwnAccumulated() &&
-                getMaxAccumulated() == that.getMaxAccumulated() &&
-                getMinAccumulated() == that.getMinAccumulated() &&
-                getOwnDiff() == that.getOwnDiff() &&
-                getMinDiff() == that.getMinDiff() &&
-                getMaxDiff() == that.getMaxDiff() &&
-                isCredit() == that.isCredit() &&
-                isMerged() == that.isMerged() &&
-                Objects.equals(getPlanId(), that.getPlanId()) &&
-                Objects.equals(getCreationTime(), that.getCreationTime()) &&
-                getOperation() == that.getOperation();
+        return getId() == that.getId()
+                && getBatchId() == that.getBatchId()
+                && getAccountId() == that.getAccountId()
+                && getOwnAccumulated() == that.getOwnAccumulated()
+                && getMaxAccumulated() == that.getMaxAccumulated()
+                && getMinAccumulated() == that.getMinAccumulated()
+                && getOwnDiff() == that.getOwnDiff()
+                && getMinDiff() == that.getMinDiff()
+                && getMaxDiff() == that.getMaxDiff()
+                && isCredit() == that.isCredit()
+                && isMerged() == that.isMerged()
+                && Objects.equals(getPlanId(), that.getPlanId())
+                && Objects.equals(getCreationTime(), that.getCreationTime())
+                && getOperation() == that.getOperation();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getBatchId(), getPlanId(), getCreationTime(), getAccountId(), getOperation(), getOwnAccumulated(), getMaxAccumulated(), getMinAccumulated(), getOwnDiff(), getMinDiff(), getMaxDiff(), isCredit(), isMerged());
+        return Objects.hash(getId(), getBatchId(), getPlanId(), getCreationTime(), getAccountId(), getOperation(),
+                getOwnAccumulated(), getMaxAccumulated(), getMinAccumulated(), getOwnDiff(), getMinDiff(), getMaxDiff(),
+                isCredit(), isMerged());
     }
 
     @Override

@@ -53,11 +53,11 @@ public class PostgresUtils {
         final String dumpPath = "/tmp/shumway.dump";
         utils.dropDb();
         utils.createDb();
-        t("createDump", () -> utils.createDump(dumpPath));
-        t("createSnapshot", () -> utils.createSnapshot());
+        test("createDump", () -> utils.createDump(dumpPath));
+        test("createSnapshot", () -> utils.createSnapshot());
         utils.dropDb();
-        t("restoreDump", () -> utils.restoreDump(dumpPath));
-        t("restoreSnapshot", () -> utils.restoreSnapshot());
+        test("restoreDump", () -> utils.restoreDump(dumpPath));
+        test("restoreSnapshot", () -> utils.restoreSnapshot());
         utils.dropSnapshot();
 
         try {
@@ -67,9 +67,60 @@ public class PostgresUtils {
         }
     }
 
+    public static void run(String bashCmd, Map<String, String> envs, boolean redirectStdouts) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
+            if (redirectStdouts) {
+                pb.inheritIO();
+            }
+            pb.environment().putAll(envs);
+            Process p = pb.start();
+
+            int exitCode = p.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String run(String bashCmd, Map<String, String> envs) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
+            pb.environment().putAll(envs);
+            Process p = pb.start();
+
+            String ret;
+            try (BufferedReader buffer = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                ret = buffer.lines().collect(Collectors.joining("\n"));
+            }
+
+            int exitCode = p.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode);
+            }
+            return ret;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void test(String preffix, Runnable function) {
+        long startTime = System.currentTimeMillis();
+        function.run();
+        System.out.println(preffix + ": " + (System.currentTimeMillis() - startTime) + "ms.");
+    }
+
     public void createDb() {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-db");
+        runAndOutToStdout(envs);
+    }
+
+    public void createSnapshot() {
+        Map<String, String> envs = getDefaultEnvs();
+        envs.put(TEMPLATE, "create-snapshot");
         runAndOutToStdout(envs);
     }
 
@@ -80,29 +131,16 @@ public class PostgresUtils {
         runAndOutToStdout(envs);
     }
 
+    public void restoreSnapshot() {
+        Map<String, String> envs = getDefaultEnvs();
+        envs.put(TEMPLATE, "restore-snapshot");
+        runAndOutToStdout(envs);
+    }
+
     public void restoreSnapshot(String snapshotSuffix) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "restore-snapshot");
         envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
-        runAndOutToStdout(envs);
-    }
-
-    public void dropSnapshot(String snapshotSuffix) {
-        Map<String, String> envs = getDefaultEnvs();
-        envs.put(TEMPLATE, "drop-snapshot");
-        envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
-        runAndOutToStdout(envs);
-    }
-
-    public void createSnapshot() {
-        Map<String, String> envs = getDefaultEnvs();
-        envs.put(TEMPLATE, "create-snapshot");
-        runAndOutToStdout(envs);
-    }
-
-    public void restoreSnapshot() {
-        Map<String, String> envs = getDefaultEnvs();
-        envs.put(TEMPLATE, "restore-snapshot");
         runAndOutToStdout(envs);
     }
 
@@ -112,6 +150,12 @@ public class PostgresUtils {
         runAndOutToStdout(envs);
     }
 
+    public void dropSnapshot(String snapshotSuffix) {
+        Map<String, String> envs = getDefaultEnvs();
+        envs.put(TEMPLATE, "drop-snapshot");
+        envs.put(SNAPSHOT_SUFFIX, snapshotSuffix);
+        runAndOutToStdout(envs);
+    }
 
     public void dropDb() {
         Map<String, String> envs = getDefaultEnvs();
@@ -126,109 +170,78 @@ public class PostgresUtils {
         runAndOutToStdout(envs);
     }
 
-    public void createDump(String dumpPath){
+    public void createDump(String dumpPath) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "create-dump");
         envs.put(DUMP_PATH, dumpPath);
         runAndOutToStdout(envs);
     }
 
-    public void restoreDump(String dumpPath){
+    public void restoreDump(String dumpPath) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "restore-dump");
         envs.put(DUMP_PATH, dumpPath);
         runAndOutToStdout(envs);
     }
 
-    public void vacuumFull(){
+    public void vacuumFull() {
         psql("vacuum full;");
     }
 
-    public void vacuumAnalyze(){
+    public void vacuumAnalyze() {
         psql("vacuum analyze;");
     }
 
-    public void psql(String sql){
+    public void psql(String sql) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "psql-command");
         envs.put(PSQL_COMMAND, sql);
         runAndOutToStdout(envs);
     }
 
-    public void psqlCommit(String sql){
+    public void psqlCommit(String sql) {
         psql("begin; \n" +
                 sql + " \n" +
-             "commit;"
+                "commit;"
         );
     }
 
-    public String psqlToString(String sql){
+    public String psqlToString(String sql) {
         Map<String, String> envs = getDefaultEnvs();
         envs.put(TEMPLATE, "psql-command");
         envs.put(PSQL_COMMAND, sql);
         return run(bashScriptPath, envs);
     }
 
-    public void runAndOutToStdout(Map<String, String> envs){
+    public void runAndOutToStdout(Map<String, String> envs) {
         run(bashScriptPath, envs, showOutput);
     }
 
-    public static void run(String bashCmd, Map<String, String> envs, boolean redirectStdouts) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
-            if(redirectStdouts) {
-                pb.inheritIO();
-            }
-            pb.environment().putAll(envs);
-            Process p = pb.start();
-
-            int exitCode = p.waitFor();
-            if(exitCode != 0){
-                throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode );
-            }
-        }catch (Exception e){
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static String run(String bashCmd, Map<String, String> envs) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(bashCmd).directory(null);
-            pb.environment().putAll(envs);
-            Process p = pb.start();
-
-            String ret;
-            try (BufferedReader buffer = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-                ret =  buffer.lines().collect(Collectors.joining("\n"));
-            }
-
-            int exitCode = p.waitFor();
-            if(exitCode != 0){
-                throw new RuntimeException("Fail to execute script. Script exit code: " + exitCode );
-            }
-            return ret;
-        }catch (Exception e){
-            throw new RuntimeException(e);
-        }
-    }
-
     // ! should return new Map every time
-    public Map<String, String> getDefaultEnvs(){
+    public Map<String, String> getDefaultEnvs() {
         final Map<String, String> envs = new HashMap<>();
-        if(host != null) envs.put(DB_HOST, host);
-        if(port != null) envs.put(DB_PORT, "" + port);
-        if(superUser != null) envs.put(DB_SUPERUSER, superUser);
-        if(password != null) envs.put(PGPASSWORD, password);
-        if(database != null) envs.put(DB_NAME, database);
-        if(containerId != null) envs.put("CONTAINER_ID", containerId);
-        if(bashScriptInContainerPath != null) envs.put("UTILS_SH_IN_CONTAINER", bashScriptInContainerPath);
+        if (host != null) {
+            envs.put(DB_HOST, host);
+        }
+        if (port != null) {
+            envs.put(DB_PORT, "" + port);
+        }
+        if (superUser != null) {
+            envs.put(DB_SUPERUSER, superUser);
+        }
+        if (password != null) {
+            envs.put(PGPASSWORD, password);
+        }
+        if (database != null) {
+            envs.put(DB_NAME, database);
+        }
+        if (containerId != null) {
+            envs.put("CONTAINER_ID", containerId);
+        }
+        if (bashScriptInContainerPath != null) {
+            envs.put("UTILS_SH_IN_CONTAINER", bashScriptInContainerPath);
+        }
 
         return envs;
-    }
-
-    private static void t(String preffix, Runnable function){
-        long startTime = System.currentTimeMillis();
-        function.run();
-        System.out.println(preffix + ": " + (System.currentTimeMillis() - startTime) + "ms.");
     }
 }

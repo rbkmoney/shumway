@@ -1,6 +1,16 @@
 package com.rbkmoney.shumway;
 
-import com.rbkmoney.damsel.accounter.*;
+import com.rbkmoney.damsel.accounter.Account;
+import com.rbkmoney.damsel.accounter.AccountNotFound;
+import com.rbkmoney.damsel.accounter.AccountPrototype;
+import com.rbkmoney.damsel.accounter.AccounterSrv;
+import com.rbkmoney.damsel.accounter.InvalidPostingParams;
+import com.rbkmoney.damsel.accounter.PlanNotFound;
+import com.rbkmoney.damsel.accounter.Posting;
+import com.rbkmoney.damsel.accounter.PostingBatch;
+import com.rbkmoney.damsel.accounter.PostingPlan;
+import com.rbkmoney.damsel.accounter.PostingPlanChange;
+import com.rbkmoney.damsel.accounter.PostingPlanLog;
 import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.geck.common.util.TypeUtil;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
@@ -10,6 +20,7 @@ import org.hamcrest.Matcher;
 import org.junit.Test;
 
 import javax.annotation.PostConstruct;
+
 import java.net.URI;
 import java.time.Instant;
 import java.util.Arrays;
@@ -20,14 +31,52 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.rbkmoney.shumway.handler.AccounterValidator.*;
+import static com.rbkmoney.shumway.handler.AccounterValidator.ACC_CURR_CODE_NOT_EQUAL_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.AMOUNT_NEGATIVE_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.DST_ACC_NOT_FOUND_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_BATCH_EMPTY;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_BATCH_ID_RANGE_VIOLATION;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_BATCH_ID_VIOLATION;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_PLAN_EMPTY;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_PLAN_NOT_FOUND_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.POSTING_PLAN_STATE_CHANGE_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.RECEIVED_POSTING_NOT_FOUND_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.SAVED_POSTING_NOT_FOUND_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.SOURCE_TARGET_ACC_EQUAL_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.SRC_ACC_NOT_FOUND_ERR;
+import static com.rbkmoney.shumway.handler.AccounterValidator.generateMessage;
 import static java.util.Arrays.asList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ShumwayApplicationTests extends AbstractIntegrationTest {
     private AccounterSrv.Iface client;
+
+    public static AccounterSrv.Iface createClient(String url) {
+        try {
+            THSpawnClientBuilder clientBuilder = new THSpawnClientBuilder().withAddress(new URI(url));
+            return clientBuilder.build(AccounterSrv.Iface.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String convertToPattern(String formatString) {
+
+        return escapeRegex(formatString).replaceAll("%d", "\\\\d+").replaceAll("%s", "\\\\w+");
+    }
+
+    public static Collection<String> convertToPattern(String... formatStrings) {
+        return Stream.of(formatStrings).map(str -> convertToPattern(str)).collect(Collectors.toList());
+    }
+
+    public static String escapeRegex(String str) {
+        return str.replaceAll("[\\<\\(\\[\\{\\\\\\^\\-\\=\\$\\!\\|\\]\\}\\)‌​\\?\\*\\+\\.\\>]", "\\\\$0");
+    }
 
     @PostConstruct
     public void init() {
@@ -113,7 +162,7 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         try {
             client.hold(new PostingPlanChange(planId, new PostingBatch(1, asList(posting))));
             fail();
-        } catch (InvalidPostingParams e) {//todo invalid request expected here
+        } catch (InvalidPostingParams e) {  //todo invalid request expected here
             assertEquals(1, e.getWrongPostingsSize());
             assertThat(e.getWrongPostings().get(posting), genMatcher(POSTING_BATCH_ID_VIOLATION));
             return;
@@ -207,7 +256,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             fail();
         } catch (InvalidPostingParams e) {
             assertEquals(1, e.getWrongPostingsSize());
-            assertThat(e.getWrongPostings().get(posting), genMatcher(ACC_CURR_CODE_NOT_EQUAL_ERR, ACC_CURR_CODE_NOT_EQUAL_ERR));
+            assertThat(e.getWrongPostings().get(posting),
+                    genMatcher(ACC_CURR_CODE_NOT_EQUAL_ERR, ACC_CURR_CODE_NOT_EQUAL_ERR));
         }
 
         posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
@@ -237,8 +287,10 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         for (int i = 0; i < 6; i++) {
             final int fi = i;
             checkPlanLog(() -> client.hold(new PostingPlanChange(planId, pb.get(fi))), planLog -> {
-                assertEquals("" + fi, (long) min.get(fi), planLog.getAffectedAccounts().get(acc1).getMinAvailableAmount());
-                assertEquals("" + fi, (long) max.get(fi), planLog.getAffectedAccounts().get(acc1).getMaxAvailableAmount());
+                assertEquals("" + fi, (long) min.get(fi),
+                        planLog.getAffectedAccounts().get(acc1).getMinAvailableAmount());
+                assertEquals("" + fi, (long) max.get(fi),
+                        planLog.getAffectedAccounts().get(acc1).getMaxAvailableAmount());
             });
         }
 
@@ -273,12 +325,18 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
 
         checkPlanLog(() -> client.hold(postingPlanChange), planLog -> {
             assertEquals(2, planLog.getAffectedAccountsSize());
-            assertEquals("Src Max available hope on credit rollback", 0, planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
-            assertEquals("Src Min available hope on credit commit", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
-            assertEquals("Debit doesn't include hold for src own amount ", 0, planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
-            assertEquals("Dst Max available hope on debit commit", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
-            assertEquals("Dst Min available hope on debit rollback", 0, planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
-            assertEquals("Credit doesn't include hold for dst own amount", 0, planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
+            assertEquals("Src Max available hope on credit rollback", 0,
+                    planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
+            assertEquals("Src Min available hope on credit commit", -posting.getAmount(),
+                    planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
+            assertEquals("Debit doesn't include hold for src own amount ", 0,
+                    planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
+            assertEquals("Dst Max available hope on debit commit", posting.getAmount(),
+                    planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
+            assertEquals("Dst Min available hope on debit rollback", 0,
+                    planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
+            assertEquals("Credit doesn't include hold for dst own amount", 0,
+                    planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
 
             assertEquals("Duplicate request, result must be equal", planLog, client.hold(postingPlanChange));
 
@@ -292,7 +350,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             fail();
         } catch (InvalidPostingParams ex) {
             assertEquals(2, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting),
+                    genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
             assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
         try {
@@ -300,7 +359,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             fail();
         } catch (InvalidPostingParams ex) {
             assertEquals(2, ex.getWrongPostingsSize());
-            assertThat(ex.getWrongPostings().get(posting), genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
+            assertThat(ex.getWrongPostings().get(posting),
+                    genMatcher(SAVED_POSTING_NOT_FOUND_ERR, RECEIVED_POSTING_NOT_FOUND_ERR));
             assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
 
@@ -358,7 +418,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             assertThat(ex.getWrongPostings().get(posting2), genMatcher(RECEIVED_POSTING_NOT_FOUND_ERR));
         }
 
-        postingPlan = new PostingPlan(planId, asList(new PostingBatch(1, asList(posting)), new PostingBatch(2, asList(posting2))));
+        postingPlan = new PostingPlan(planId,
+                asList(new PostingBatch(1, asList(posting)), new PostingBatch(2, asList(posting2))));
 
         try {
             client.commitPlan(postingPlan);
@@ -379,12 +440,18 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         assertEquals(postingPlan2, client.getPlan(postingPlan2.getId()));
         PostingPlanLog planLog2 = checkPlanLog(() -> client.commitPlan(postingPlan2), planLog -> {
             assertEquals(2, planLog.getAffectedAccountsSize());
-            assertEquals("Debit sets max available amount to own amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
-            assertEquals("Debit sets min available amount to own amount", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
-            assertEquals("Debit includes commit for src own amount ", -posting.getAmount(), planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
-            assertEquals("Credit sets max available amount to own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
-            assertEquals("Credit sets max available amount to own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
-            assertEquals("Credit includes commit for dst own amount", posting.getAmount(), planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
+            assertEquals("Debit sets max available amount to own amount", -posting.getAmount(),
+                    planLog.getAffectedAccounts().get(fromAccountId).getMaxAvailableAmount());
+            assertEquals("Debit sets min available amount to own amount", -posting.getAmount(),
+                    planLog.getAffectedAccounts().get(fromAccountId).getMinAvailableAmount());
+            assertEquals("Debit includes commit for src own amount ", -posting.getAmount(),
+                    planLog.getAffectedAccounts().get(fromAccountId).getOwnAmount());
+            assertEquals("Credit sets max available amount to own amount", posting.getAmount(),
+                    planLog.getAffectedAccounts().get(toAccountId).getMaxAvailableAmount());
+            assertEquals("Credit sets max available amount to own amount", posting.getAmount(),
+                    planLog.getAffectedAccounts().get(toAccountId).getMinAvailableAmount());
+            assertEquals("Credit includes commit for dst own amount", posting.getAmount(),
+                    planLog.getAffectedAccounts().get(toAccountId).getOwnAmount());
         });
 
         assertEquals(postingPlan2, client.getPlan(postingPlan2.getId()));
@@ -418,7 +485,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         Posting posting = new Posting(fromAccountId, toAccountId, 1, "RU", "Desc");
         PostingPlanChange postingPlanChange = new PostingPlanChange(planId, new PostingBatch(1, asList(posting)));
 
-        assertEquals("Duplicate request, result must be equal", client.hold(postingPlanChange), client.hold(postingPlanChange));
+        assertEquals("Duplicate request, result must be equal", client.hold(postingPlanChange),
+                client.hold(postingPlanChange));
 
         PostingPlan postingPlan = new PostingPlan(planId, asList(new PostingBatch(1, asList(posting))));
         assertEquals(postingPlan, client.getPlan(postingPlan.getId()));
@@ -502,7 +570,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         Posting posting11 = new Posting(fromAccountId1, toAccountId1, 10, "RU", "Desc");
         Posting posting12 = new Posting(fromAccountId2, fromAccountId1, 25, "RU", "Desc");
         String planId1 = planId + "_1";
-        PostingPlanChange planChange1 = new PostingPlanChange(planId1, new PostingBatch(1, asList(posting11, posting12)));
+        PostingPlanChange planChange1 =
+                new PostingPlanChange(planId1, new PostingBatch(1, asList(posting11, posting12)));
         PostingPlanLog planLog1 = checkPlanLog(() -> client.hold(planChange1), planLog -> {
             assertEquals(3, planLog.getAffectedAccountsSize());
 
@@ -524,21 +593,23 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         Posting posting22 = new Posting(fromAccountId2, fromAccountId1, 18, "RU", "Desc");
         String planId2 = planId + "_2";
 
-        PostingPlanLog planLog2 = checkPlanLog(() -> client.hold(new PostingPlanChange(planId2, new PostingBatch(1, asList(posting21, posting22)))), planLog -> {
-            assertEquals(3, planLog.getAffectedAccountsSize());
+        PostingPlanLog planLog2 = checkPlanLog(
+                () -> client.hold(new PostingPlanChange(planId2, new PostingBatch(1, asList(posting21, posting22)))),
+                planLog -> {
+                    assertEquals(3, planLog.getAffectedAccountsSize());
 
-            assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
-            assertEquals(26, planLog.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
-            assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
+                    assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId1).getOwnAmount());
+                    assertEquals(26, planLog.getAffectedAccounts().get(fromAccountId1).getMaxAvailableAmount());
+                    assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId1).getMinAvailableAmount());
 
-            assertEquals(0, planLog.getAffectedAccounts().get(toAccountId1).getOwnAmount());
-            assertEquals(17, planLog.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
-            assertEquals(0, planLog.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
+                    assertEquals(0, planLog.getAffectedAccounts().get(toAccountId1).getOwnAmount());
+                    assertEquals(17, planLog.getAffectedAccounts().get(toAccountId1).getMaxAvailableAmount());
+                    assertEquals(0, planLog.getAffectedAccounts().get(toAccountId1).getMinAvailableAmount());
 
-            assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
-            assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
-            assertEquals(-43, planLog.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
-        });
+                    assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId2).getOwnAmount());
+                    assertEquals(0, planLog.getAffectedAccounts().get(fromAccountId2).getMaxAvailableAmount());
+                    assertEquals(-43, planLog.getAffectedAccounts().get(fromAccountId2).getMinAvailableAmount());
+                });
 
         //Commit plan2
         PostingPlan plan2 = new PostingPlan(planId2, Arrays.asList(new PostingBatch(1, asList(posting21, posting22))));
@@ -651,7 +722,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
 
         PostingPlanLog reversePlanLog = client.hold(new PostingPlanChange(planId, reversePostingBatch));
 
-        PostingPlanLog commitLog = client.commitPlan(new PostingPlan(planId, Arrays.asList(postingBatch, reversePostingBatch)));
+        PostingPlanLog commitLog =
+                client.commitPlan(new PostingPlan(planId, Arrays.asList(postingBatch, reversePostingBatch)));
         assertEquals(2, commitLog.getAffectedAccounts().size());
 
         Consumer<Account> check = ac -> {
@@ -660,7 +732,8 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
             assertEquals(0, ac.getOwnAmount());
         };
 
-        Stream.of(commitLog.getAffectedAccounts().get(fromAccountId1), commitLog.getAffectedAccounts().get(toAccountId1))
+        Stream.of(commitLog.getAffectedAccounts().get(fromAccountId1),
+                commitLog.getAffectedAccounts().get(toAccountId1))
                 .forEach(check);
 
         planId = "" + (planIdNum + 1);
@@ -668,40 +741,28 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
         PostingBatch combinedBatch = new PostingBatch(1, asList(posting, reversePosting));
         PostingPlanLog combinedPlanLog = client.hold(new PostingPlanChange(planId, combinedBatch));
 
-        Stream.of(combinedPlanLog.getAffectedAccounts().get(fromAccountId1), combinedPlanLog.getAffectedAccounts().get(toAccountId1))
+        Stream.of(combinedPlanLog.getAffectedAccounts().get(fromAccountId1),
+                combinedPlanLog.getAffectedAccounts().get(toAccountId1))
                 .forEach(check);
 
         PostingPlanLog commitCombinedPlanLog = client.commitPlan(new PostingPlan(planId, asList(combinedBatch)));
 
-        Stream.of(commitCombinedPlanLog.getAffectedAccounts().get(fromAccountId1), commitCombinedPlanLog.getAffectedAccounts().get(toAccountId1))
+        Stream.of(commitCombinedPlanLog.getAffectedAccounts().get(fromAccountId1),
+                commitCombinedPlanLog.getAffectedAccounts().get(toAccountId1))
                 .forEach(check);
-    }
-
-
-    public static AccounterSrv.Iface createClient(String url) {
-        try {
-            THSpawnClientBuilder clientBuilder = new THSpawnClientBuilder().withAddress(new URI(url));
-            return clientBuilder.build(AccounterSrv.Iface.class);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private Matcher genMatcher(String... msgPatterns) {
         return matchesPattern(generateMessage(convertToPattern(msgPatterns)));
     }
 
-    public static String convertToPattern(String formatString) {
-
-        return escapeRegex(formatString).replaceAll("%d", "\\\\d+").replaceAll("%s", "\\\\w+");
-    }
-
-    public static Collection<String> convertToPattern(String... formatStrings) {
-        return Stream.of(formatStrings).map(str -> convertToPattern(str)).collect(Collectors.toList());
-    }
-
-    public static String escapeRegex(String str) {
-        return str.replaceAll("[\\<\\(\\[\\{\\\\\\^\\-\\=\\$\\!\\|\\]\\}\\)‌​\\?\\*\\+\\.\\>]", "\\\\$0");
+    private PostingPlanLog checkPlanLog(TSupplier<PostingPlanLog> operation, TConsumer<PostingPlanLog> test)
+            throws TException {
+        PostingPlanLog planLog = operation.get();
+        test.accept(planLog);
+        PostingPlanLog planLog2 = operation.get();
+        test.accept(planLog2);
+        return planLog;
     }
 
     private interface TSupplier<T> {
@@ -710,14 +771,6 @@ public class ShumwayApplicationTests extends AbstractIntegrationTest {
 
     private interface TConsumer<T> {
         void accept(T data) throws TException;
-    }
-
-    private PostingPlanLog checkPlanLog(TSupplier<PostingPlanLog> operation, TConsumer<PostingPlanLog> test) throws TException {
-        PostingPlanLog planLog = operation.get();
-        test.accept(planLog);
-        PostingPlanLog planLog2 = operation.get();
-        test.accept(planLog2);
-        return planLog;
     }
 
 }

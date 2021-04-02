@@ -9,6 +9,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
  */
 @Component
 public class SupportAccountDao extends NamedParameterJdbcDaoSupport {
+    static final int BATCH_SIZE = 10000;
 
     @Autowired
     public SupportAccountDao(DataSource ds) {
@@ -26,15 +28,14 @@ public class SupportAccountDao extends NamedParameterJdbcDaoSupport {
     }
 
     public List<Long> add(Account prototype, int numberOfAccs) throws DaoException {
-        final int BATCH_SISE = 10000;
         final List<Long> ids = new ArrayList<>();
-        if(numberOfAccs >= BATCH_SISE){
-            for(int i=0; i < numberOfAccs/BATCH_SISE; i++){
-                ids.addAll(addBatch(prototype, BATCH_SISE));
+        if (numberOfAccs >= BATCH_SIZE) {
+            for (int i = 0; i < numberOfAccs / BATCH_SIZE; i++) {
+                ids.addAll(addBatch(prototype, BATCH_SIZE));
             }
         }
-        if(numberOfAccs % BATCH_SISE != 0){
-            ids.addAll(addBatch(prototype, numberOfAccs % BATCH_SISE ));
+        if (numberOfAccs % BATCH_SIZE != 0) {
+            ids.addAll(addBatch(prototype, numberOfAccs % BATCH_SIZE));
         }
 
         return ids;
@@ -42,13 +43,11 @@ public class SupportAccountDao extends NamedParameterJdbcDaoSupport {
 
     private List<Long> addBatch(Account prototype, int numberOfAccs) throws DaoException {
         List<String> insertValues = new ArrayList<>();
-        for(int i=0; i < numberOfAccs; i++){
+        for (int i = 0; i < numberOfAccs; i++) {
             insertValues.add("(:curr_sym_code, :creation_time, :description)");
         }
-        final String sql =
-                "INSERT INTO shm.account(curr_sym_code, creation_time, description) " +
-                        "VALUES " + String.join(", ", insertValues) +
-                        " RETURNING id;";
+        final String sql = "INSERT INTO shm.account(curr_sym_code, creation_time, description) " +
+                "VALUES " + String.join(", ", insertValues) + " RETURNING id;";
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("curr_sym_code", prototype.getCurrSymCode());
         params.addValue("creation_time", Timestamp.from(prototype.getCreationTime()));
@@ -59,7 +58,9 @@ public class SupportAccountDao extends NamedParameterJdbcDaoSupport {
             if (updateCount != numberOfAccs) {
                 throw new DaoException("Accounts creation returned unexpected update count: " + updateCount);
             }
-            return keyHolder.getKeyList().stream().map(m -> (Long)m.get("id")).collect(Collectors.toList());
+            return keyHolder.getKeyList().stream()
+                    .map(m -> (Long) m.get("id"))
+                    .collect(Collectors.toList());
         } catch (NestedRuntimeException e) {
             throw new DaoException(e);
         }

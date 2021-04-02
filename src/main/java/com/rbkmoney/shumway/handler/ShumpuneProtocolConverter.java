@@ -1,13 +1,22 @@
 package com.rbkmoney.shumway.handler;
 
-import com.rbkmoney.damsel.shumpune.*;
+import com.rbkmoney.damsel.shumpune.Account;
+import com.rbkmoney.damsel.shumpune.AccountPrototype;
+import com.rbkmoney.damsel.shumpune.Balance;
+import com.rbkmoney.damsel.shumpune.Clock;
+import com.rbkmoney.damsel.shumpune.LatestClock;
+import com.rbkmoney.damsel.shumpune.PostingBatch;
+import com.rbkmoney.damsel.shumpune.PostingPlan;
+import com.rbkmoney.damsel.shumpune.PostingPlanChange;
 
 import java.util.stream.Collectors;
 
 public class ShumpuneProtocolConverter {
 
 
-    public static com.rbkmoney.damsel.accounter.PostingBatch convertToOldBatch(com.rbkmoney.damsel.shumpune.PostingBatch batch) {
+    public static com.rbkmoney.damsel.accounter.PostingBatch convertToOldBatch(
+            com.rbkmoney.damsel.shumpune.PostingBatch batch
+    ) {
         return new com.rbkmoney.damsel.accounter.PostingBatch()
                 .setId(batch.getId())
                 .setPostings(batch.getPostings().stream()
@@ -21,7 +30,9 @@ public class ShumpuneProtocolConverter {
                         .collect(Collectors.toList()));
     }
 
-    public static com.rbkmoney.damsel.shumpune.Posting convertToNewPosting(com.rbkmoney.damsel.accounter.Posting posting) {
+    public static com.rbkmoney.damsel.shumpune.Posting convertToNewPosting(
+            com.rbkmoney.damsel.accounter.Posting posting
+    ) {
         return new com.rbkmoney.damsel.shumpune.Posting()
                 .setAmount(posting.getAmount())
                 .setCurrencySymCode(posting.getCurrencySymCode())
@@ -30,7 +41,9 @@ public class ShumpuneProtocolConverter {
                 .setToId(posting.getToId());
     }
 
-    public static com.rbkmoney.damsel.accounter.PostingPlan convertToOldPostingPlan(com.rbkmoney.damsel.shumpune.PostingPlan plan) {
+    public static com.rbkmoney.damsel.accounter.PostingPlan convertToOldPostingPlan(
+            com.rbkmoney.damsel.shumpune.PostingPlan plan
+    ) {
         return new com.rbkmoney.damsel.accounter.PostingPlan()
                 .setBatchList(plan.getBatchList().stream()
                         .map(ShumpuneProtocolConverter::convertToOldBatch)
@@ -38,7 +51,9 @@ public class ShumpuneProtocolConverter {
                 .setId(plan.getId());
     }
 
-    public static com.rbkmoney.damsel.shumpune.PostingBatch convertToNewPostingBatch(com.rbkmoney.damsel.accounter.PostingBatch postingBatch) {
+    public static com.rbkmoney.damsel.shumpune.PostingBatch convertToNewPostingBatch(
+            com.rbkmoney.damsel.accounter.PostingBatch postingBatch
+    ) {
         return new com.rbkmoney.damsel.shumpune.PostingBatch()
                 .setId(postingBatch.getId())
                 .setPostings(postingBatch.getPostings().stream()
@@ -70,14 +85,18 @@ public class ShumpuneProtocolConverter {
                 .setClock(Clock.latest(new LatestClock()));
     }
 
-    public static com.rbkmoney.damsel.accounter.AccountPrototype convertToOldAccountPrototype(AccountPrototype prototype) {
+    public static com.rbkmoney.damsel.accounter.AccountPrototype convertToOldAccountPrototype(
+            AccountPrototype prototype
+    ) {
         return new com.rbkmoney.damsel.accounter.AccountPrototype()
                 .setCreationTime(prototype.getCreationTime())
                 .setCurrencySymCode(prototype.getCurrencySymCode())
                 .setDescription(prototype.getDescription());
     }
 
-    public static com.rbkmoney.damsel.accounter.PostingPlanChange convertToOldPostingPlanChange(PostingPlanChange postingPlanChange) {
+    public static com.rbkmoney.damsel.accounter.PostingPlanChange convertToOldPostingPlanChange(
+            PostingPlanChange postingPlanChange
+    ) {
         PostingBatch batch = postingPlanChange.getBatch();
         return new com.rbkmoney.damsel.accounter.PostingPlanChange()
                 .setId(postingPlanChange.getId())

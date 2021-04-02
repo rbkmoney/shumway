@@ -23,7 +23,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-@TestPropertySource(locations="classpath:test.properties")
+@TestPropertySource(locations = "classpath:test.properties")
 public class CloseToRealTest {
     private static final int NUMBER_OF_THREADS = 8;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
@@ -60,19 +60,20 @@ public class CloseToRealTest {
     }
 
     @Test
-    public void test() throws Exception{
+    public void test() throws Exception {
         final int numberOfMerchantAccs = 10000;
 
-        List<Long> providerAccs = AccountUtils.createAccs(10, supportAccountDao);
-        List<Long> rbkMoneyAccs = AccountUtils.createAccs(10, supportAccountDao);
-        List<Long> merchantAccs = AccountUtils.createAccs(numberOfMerchantAccs, supportAccountDao);
+        List<Long> providerAccs = AccountUtils.createAccounts(10, supportAccountDao);
+        List<Long> rbkMoneyAccs = AccountUtils.createAccounts(10, supportAccountDao);
+        List<Long> merchantAccs = AccountUtils.createAccounts(numberOfMerchantAccs, supportAccountDao);
 
-        for(int i=0; i < 10; i++) {
+        for (int i = 0; i < 10; i++) {
             //utils.vacuumAnalyze();
 
             int numberOfRounds = 10000;
-            double avgTime = AccountUtils.emulateRealTransfer(client, providerAccs, rbkMoneyAccs, merchantAccs, numberOfRounds,
-                    NUMBER_OF_THREADS, SIZE_OF_QUEUE);
+            double avgTime =
+                    AccountUtils.emulateRealTransfer(client, providerAccs, rbkMoneyAccs, merchantAccs, numberOfRounds,
+                            NUMBER_OF_THREADS, SIZE_OF_QUEUE);
 
             System.out.println("Emulate real transfer:");
             System.out.println("NUMBER_OF_THREADS: " + NUMBER_OF_THREADS);

@@ -2,6 +2,7 @@ package com.rbkmoney.shumway;
 
 import com.rbkmoney.damsel.accounter.AccounterSrv;
 import com.rbkmoney.shumway.dao.SupportAccountDao;
+import com.rbkmoney.shumway.utils.AccountUtils;
 import com.rbkmoney.woody.thrift.impl.http.THSpawnClientBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.thrift.TException;
@@ -18,7 +19,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import static com.rbkmoney.shumway.utils.AccountUtils.*;
+import static com.rbkmoney.shumway.utils.AccountUtils.startCircleCheck;
+import static com.rbkmoney.shumway.utils.AccountUtils.startCircleTransfer;
 import static org.junit.Assert.assertNotNull;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
@@ -52,7 +54,8 @@ public class HighAvailabilityTest {
     @Test
     @Ignore
     public void testRemote() throws URISyntaxException, TException, InterruptedException {
-        THSpawnClientBuilder clientBuilder = new THSpawnClientBuilder().withAddress(new URI("http://localhost:" + getPort() + "/accounter"));
+        THSpawnClientBuilder clientBuilder =
+                new THSpawnClientBuilder().withAddress(new URI("http://localhost:" + getPort() + "/accounter"));
         client = clientBuilder.build(AccounterSrv.Iface.class);
         testHighAvailability();
     }
@@ -65,11 +68,12 @@ public class HighAvailabilityTest {
     // move money 1 -> 2 -> 3 .. -> N -> 1
     // after all transactions amount on all accounts should be zero
     // also check intermediate amounts
+    @SuppressWarnings("VariableDeclarationUsageDistance")
     private void testHighAvailability() throws TException, InterruptedException {
         long totalStartTime = System.currentTimeMillis();
         assertNotNull(client);
 
-        List<Long> accs = createAccs(NUMBER_OF_ACCS, supportAccountDao);
+        List<Long> accs = AccountUtils.createAccounts(NUMBER_OF_ACCS, supportAccountDao);
 
         startCircleTransfer(client, accs, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT);
         startCircleCheck(client, accs, 0);

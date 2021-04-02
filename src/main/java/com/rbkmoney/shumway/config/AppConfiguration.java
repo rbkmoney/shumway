@@ -41,7 +41,11 @@ public class AppConfiguration {
     }
 
     @Bean
-    AccounterHandler accounterHandler(AccountService accountService, PostingPlanService postingPlanService, TransactionTemplate transactionTemplate) {
+    AccounterHandler accounterHandler(
+            AccountService accountService,
+            PostingPlanService postingPlanService,
+            TransactionTemplate transactionTemplate
+    ) {
         return new AccounterHandler(accountService, postingPlanService, transactionTemplate);
     }
 
