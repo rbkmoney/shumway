@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -25,47 +24,50 @@ public class PostingPlanService {
     }
 
     public Map<Long, List<PostingLog>> getPostingLogs(String planId, PostingOperation operation) {
-        log.info("Get posting logs for plan: {}, op: {}", planId, operation);
+        log.debug("Get posting logs for plan: {}, op: {}", planId, operation);
         Map<Long, List<PostingLog>> result = postingPlanDao.getPostingLogs(planId, operation);
-        log.info("Got posting logs for {} batches", result.size());
+        log.debug("Got posting logs for {} batches", result.size());
         return result;
     }
 
     public PostingPlanLog getSharedPostingPlan(String planId) {
-        log.info("Get shared plan: {}", planId);
+        log.debug("Get shared plan: {}", planId);
         PostingPlanLog result = postingPlanDao.getSharedPlanLog(planId);
-        log.info("Got shared plan: {}", result);
+        log.debug("Got shared plan: {}", result);
         return result;
     }
 
     /**
      * @return Entry, contains old plan as a key and new/updated plan as a value
-     * */
-    public Map.Entry<PostingPlanLog, PostingPlanLog>  updatePostingPlan(PostingPlanLog planLog, PostingOperation overridableOperation) {
-        log.info("Get exclusive plan log: {}", planLog.getPlanId());
+     */
+    public Map.Entry<PostingPlanLog, PostingPlanLog> updatePostingPlan(
+            PostingPlanLog planLog,
+            PostingOperation overridableOperation
+    ) {
+        log.debug("Get exclusive plan log: {}", planLog.getPlanId());
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
-        log.info("Update plan log: {}, override op: {}", planLog.getPlanId(), overridableOperation);
+        log.debug("Update plan log: {}, override op: {}", planLog.getPlanId(), overridableOperation);
         PostingPlanLog newPlanLog = postingPlanDao.updatePlanLog(planLog, overridableOperation);
-        log.info("Updated plan log: {}", newPlanLog);
+        log.debug("Updated plan log: {}", newPlanLog);
         return new AbstractMap.SimpleEntry<>(oldPlanLog, newPlanLog);
     }
 
     /**
      * @return Entry, contains old plan as a key and new/updated plan as a value
-     * */
+     */
     public Map.Entry<PostingPlanLog, PostingPlanLog> createOrUpdatePostingPlan(PostingPlanLog planLog) {
-        log.info("Get exclusive plan log: {}", planLog.getPlanId());
+        log.debug("Get exclusive plan log: {}", planLog.getPlanId());
         PostingPlanLog oldPlanLog = postingPlanDao.getExclusivePlanLog(planLog.getPlanId());
-        log.info("Add or update plan log: {}", planLog.getPlanId());
+        log.debug("Add or update plan log: {}", planLog.getPlanId());
         PostingPlanLog newPlanLog = postingPlanDao.addOrUpdatePlanLog(planLog);
-        log.info("Result plan log: {}", newPlanLog);
+        log.debug("Result plan log: {}", newPlanLog);
         return new AbstractMap.SimpleEntry<>(oldPlanLog, newPlanLog);
     }
 
     public void addPostingLogs(List<PostingLog> postingLogs) {
-        log.info("Add posting logs: {}", postingLogs);
+        log.debug("Add posting logs: {}", postingLogs);
         postingPlanDao.addPostingLogs(postingLogs);
-        log.info("Added posting logs: {}", postingLogs.size());
+        log.debug("Added posting logs: {}", postingLogs.size());
     }
 
 

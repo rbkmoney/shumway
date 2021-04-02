@@ -21,9 +21,20 @@ public class PostgresUtilsInDockerTest {
             .waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())
             .build();
 
+    public static String getRawContainerName(DockerComposeRule docker, String serviceName)
+            throws IOException, InterruptedException {
+        for (ContainerName containerName : docker.dockerCompose().ps()) {
+            if (serviceName.equals(containerName.semanticName())) {
+                return containerName.rawName();
+            }
+        }
+
+        return null;
+    }
+
     @Test
     public void testAllInOne() throws IOException, InterruptedException {
-        Thread.sleep(5000); // sometimes ".waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())" doesn't work
+        Thread.sleep(5000); //sometimes ".waitingForService("postgres", HealthChecks.toHaveAllPortsOpen())" doesn't work
 
         // configure utils for postgres in docker
         final PostgresUtils utils = PostgresUtils.builder()
@@ -47,15 +58,5 @@ public class PostgresUtilsInDockerTest {
         utils.restoreDump(dumpPath);
         utils.restoreSnapshot();
         utils.dropSnapshot();
-    }
-
-    public static String getRawContainerName(DockerComposeRule docker, String serviceName) throws IOException, InterruptedException {
-        for(ContainerName containerName : docker.dockerCompose().ps()){
-            if(serviceName.equals(containerName.semanticName())){
-                return containerName.rawName();
-            }
-        }
-
-        return null;
     }
 }

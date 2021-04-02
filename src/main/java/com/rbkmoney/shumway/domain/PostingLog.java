@@ -18,7 +18,8 @@ public class PostingLog {
     private final String currSymCode;
     private final String description;
 
-    public PostingLog(long id, String planId, long batchId, long fromAccountId, long toAccountId, long amount, Instant creationTime, PostingOperation operation, String currSymCode, String description) {
+    public PostingLog(long id, String planId, long batchId, long fromAccountId, long toAccountId, long amount,
+                      Instant creationTime, PostingOperation operation, String currSymCode, String description) {
         this.id = id;
         this.planId = planId;
         this.batchId = batchId;
@@ -74,24 +75,30 @@ public class PostingLog {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PostingLog)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof PostingLog)) {
+            return false;
+        }
         PostingLog that = (PostingLog) o;
-        return id == that.id &&
-                batchId == that.batchId &&
-                fromAccountId == that.fromAccountId &&
-                toAccountId == that.toAccountId &&
-                amount == that.amount &&
-                Objects.equals(planId, that.planId) &&
-                Objects.equals(creationTime, that.creationTime) &&
-                operation == that.operation &&
-                Objects.equals(currSymCode, that.currSymCode) &&
-                Objects.equals(description, that.description);
+        return id == that.id
+                && batchId == that.batchId
+                && fromAccountId == that.fromAccountId
+                && toAccountId == that.toAccountId
+                && amount == that.amount
+                && Objects.equals(planId, that.planId)
+                && Objects.equals(creationTime, that.creationTime)
+                && operation == that.operation
+                && Objects.equals(currSymCode, that.currSymCode)
+                && Objects.equals(description, that.description);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, planId, batchId, fromAccountId, toAccountId, amount, creationTime, operation, currSymCode, description);
+        return Objects
+                .hash(id, planId, batchId, fromAccountId, toAccountId, amount, creationTime, operation, currSymCode,
+                        description);
     }
 
     @Override

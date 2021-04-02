@@ -9,7 +9,13 @@ import java.util.Objects;
 public class StatefulAccount extends Account {
     private AccountState accountState;
 
-    public StatefulAccount(long id, Instant creationTime, String currSymCode, String description, AccountState accountState) {
+    public StatefulAccount(
+            long id,
+            Instant creationTime,
+            String currSymCode,
+            String description,
+            AccountState accountState
+    ) {
         super(id, creationTime, currSymCode, description);
         this.accountState = accountState;
     }
@@ -25,9 +31,15 @@ public class StatefulAccount extends Account {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof StatefulAccount)) return false;
-        if (!super.equals(o)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof StatefulAccount)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
         StatefulAccount that = (StatefulAccount) o;
         return Objects.equals(accountState, that.accountState);
     }

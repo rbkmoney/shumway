@@ -16,13 +16,13 @@ public interface AccountDao {
 
     Account get(long id) throws DaoException;
 
+    List<Account> get(Collection<Long> ids) throws DaoException;
+
     Map<Long, StatefulAccount> getStatefulUpTo(Collection<Long> ids, String planId, long batchId) throws DaoException;
 
     Map<Long, StatefulAccount> getStateful(Collection<Long> ids) throws DaoException;
 
     Map<Long, StatefulAccount> getStatefulExclusive(Collection<Long> ids) throws DaoException;
-
-    List<Account> get(Collection<Long> ids) throws DaoException;
 
     Map<Long, AccountState> getAccountStates(Collection<Long> accountIds) throws DaoException;
 }

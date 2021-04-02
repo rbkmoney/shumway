@@ -23,7 +23,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-@TestPropertySource(locations="classpath:test.properties")
+@TestPropertySource(locations = "classpath:test.properties")
 public class PerformanceTest {
     private static final int NUMBER_OF_THREADS = 4;
     private static final int SIZE_OF_QUEUE = NUMBER_OF_THREADS * 8;
@@ -59,14 +59,14 @@ public class PerformanceTest {
     }
 
     @Test
-    public void test1() throws Exception{
+    public void test1() throws Exception {
         utils.restoreSnapshot();
         utils.vacuumAnalyze();
         test();
     }
 
     @Test
-    public void test2() throws Exception{
+    public void test2() throws Exception {
         utils.restoreSnapshot();
         utils.psqlCommit("drop index shm.account_log_plan_id_idx;");
         utils.psqlCommit("alter table shm.posting_log drop constraint posting_log_pkey;");
@@ -79,7 +79,8 @@ public class PerformanceTest {
         utils.restoreSnapshot();
         utils.psqlCommit("drop index shm.account_log_plan_id_idx;");
         utils.psqlCommit("drop index shm.account_log_account_id_operation_idx;");
-        utils.psqlCommit("create index acc_test_idx on shm.account_log using btree (plan_id, batch_id, account_id, own_amount, own_amount_delta);");
+        utils.psqlCommit("create index acc_test_idx on shm.account_log using btree " +
+                "(plan_id, batch_id, account_id, own_amount, own_amount_delta);");
         utils.psqlCommit("create index account_log_account_id_idx on shm.account_log using btree (account_id);");
         utils.vacuumAnalyze();
         test();
@@ -98,21 +99,16 @@ public class PerformanceTest {
 
     @Test
     public void test() throws InterruptedException {
-        List<Long> accIds = AccountUtils.createAccs(NUMBER_OF_ACCS, supportAccountDao);
+        List<Long> accIds = AccountUtils.createAccounts(NUMBER_OF_ACCS, supportAccountDao);
         int numberOfRounds = 1000;
         long startTime = System.currentTimeMillis();
-        double avgTime = AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS, SIZE_OF_QUEUE, AMOUNT, numberOfRounds);
+        double avgTime = AccountUtils.startCircleTransfer(client, accIds, NUMBER_OF_THREADS,
+                SIZE_OF_QUEUE, AMOUNT, numberOfRounds);
 
         System.out.println("NUMBER_OF_THREADS: " + NUMBER_OF_THREADS);
         System.out.println("NUMBER_OF_ACCS: " + NUMBER_OF_ACCS);
         System.out.println("NUMBER_OF_ROUNDS: " + numberOfRounds);
         System.out.println("AVG_TIME(ms): " + avgTime);
         System.out.println("TOTAL_TIME(ms):" + (System.currentTimeMillis() - startTime));
-    }
-
-    private static void t(String preffix, Runnable function){
-        long startTime = System.currentTimeMillis();
-        function.run();
-        System.out.println(preffix + ": " + (System.currentTimeMillis() - startTime) + "ms.");
     }
 }

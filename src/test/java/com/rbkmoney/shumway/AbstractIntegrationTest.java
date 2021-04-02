@@ -26,6 +26,9 @@ public abstract class AbstractIntegrationTest {
     @ClassRule
     public static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:10.5");
 
+    @LocalServerPort
+    protected int port;
+
     public static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
@@ -54,7 +57,4 @@ public abstract class AbstractIntegrationTest {
             ).applyTo(configurableApplicationContext);
         }
     }
-
-    @LocalServerPort
-    protected int port;
 }

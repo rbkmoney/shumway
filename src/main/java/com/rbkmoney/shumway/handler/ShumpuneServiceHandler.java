@@ -1,6 +1,13 @@
 package com.rbkmoney.shumway.handler;
 
-import com.rbkmoney.damsel.shumpune.*;
+import com.rbkmoney.damsel.shumpune.Account;
+import com.rbkmoney.damsel.shumpune.AccountPrototype;
+import com.rbkmoney.damsel.shumpune.AccounterSrv;
+import com.rbkmoney.damsel.shumpune.Balance;
+import com.rbkmoney.damsel.shumpune.Clock;
+import com.rbkmoney.damsel.shumpune.LatestClock;
+import com.rbkmoney.damsel.shumpune.PostingPlan;
+import com.rbkmoney.damsel.shumpune.PostingPlanChange;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

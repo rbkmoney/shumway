@@ -5,7 +5,12 @@ import com.rbkmoney.damsel.accounter.Posting;
 import com.rbkmoney.damsel.accounter.PostingBatch;
 import com.rbkmoney.damsel.accounter.PostingPlan;
 import com.rbkmoney.geck.common.util.TypeUtil;
-import com.rbkmoney.shumway.domain.*;
+import com.rbkmoney.shumway.domain.Account;
+import com.rbkmoney.shumway.domain.AccountState;
+import com.rbkmoney.shumway.domain.PostingLog;
+import com.rbkmoney.shumway.domain.PostingOperation;
+import com.rbkmoney.shumway.domain.PostingPlanLog;
+import com.rbkmoney.shumway.domain.StatefulAccount;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,9 +22,11 @@ import java.util.stream.Collectors;
 public class ProtocolConverter {
 
     public static Account convertToDomainAccount(AccountPrototype protocolPrototype) {
+        Instant creationTime = protocolPrototype.isSetCreationTime()
+                ? TypeUtil.stringToInstant(protocolPrototype.getCreationTime()) : Instant.now();
         return new Account(
                 0,
-                (protocolPrototype.isSetCreationTime() ? TypeUtil.stringToInstant(protocolPrototype.getCreationTime()) : Instant.now()),
+                creationTime,
                 protocolPrototype.getCurrencySymCode(),
                 protocolPrototype.getDescription()
         );
@@ -49,7 +56,11 @@ public class ProtocolConverter {
         );
     }
 
-    public static PostingLog convertToDomainPosting(Posting protocolPosting, PostingBatch batch, com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog) {
+    public static PostingLog convertToDomainPosting(
+            Posting protocolPosting,
+            PostingBatch batch,
+            com.rbkmoney.shumway.domain.PostingPlanLog currentDomainPlanLog
+    ) {
         return new PostingLog(
                 0,
                 currentDomainPlanLog.getPlanId(),
@@ -64,14 +75,23 @@ public class ProtocolConverter {
         );
     }
 
-    public static PostingPlanLog convertToDomainPlan(PostingPlan protocolPostingPlan, PostingOperation domainPostingOperation) {
-        long lastBatchId = protocolPostingPlan.getBatchList().stream().mapToLong(batch -> batch.getId()).max().getAsLong();
-        PostingPlanLog domainPlanLog = new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, lastBatchId);
+    public static PostingPlanLog convertToDomainPlan(
+            PostingPlan protocolPostingPlan,
+            PostingOperation domainPostingOperation
+    ) {
+        long lastBatchId = protocolPostingPlan.getBatchList().stream()
+                .mapToLong(batch -> batch.getId())
+                .max()
+                .getAsLong();
+        PostingPlanLog domainPlanLog =
+                new PostingPlanLog(protocolPostingPlan.getId(), Instant.now(), domainPostingOperation, lastBatchId);
         return domainPlanLog;
     }
 
     public static PostingBatch convertFromDomainToBatch(long batchId, List<PostingLog> domainPostings) {
-        return new PostingBatch(batchId, domainPostings.stream().map(ProtocolConverter::convertFromDomainToPosting).collect(Collectors.toList()));
+        return new PostingBatch(batchId, domainPostings.stream()
+                .map(ProtocolConverter::convertFromDomainToPosting)
+                .collect(Collectors.toList()));
     }
 
 

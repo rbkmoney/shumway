@@ -41,13 +41,17 @@ public class Account {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Account)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Account)) {
+            return false;
+        }
         Account account = (Account) o;
-        return id == account.id &&
-                Objects.equals(creationTime, account.creationTime) &&
-                Objects.equals(currSymCode, account.currSymCode) &&
-                Objects.equals(description, account.description);
+        return id == account.id
+                && Objects.equals(creationTime, account.creationTime)
+                && Objects.equals(currSymCode, account.currSymCode)
+                && Objects.equals(description, account.description);
     }
 
     @Override

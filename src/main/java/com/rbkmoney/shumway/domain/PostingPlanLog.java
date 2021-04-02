@@ -37,13 +37,17 @@ public class PostingPlanLog {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PostingPlanLog)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof PostingPlanLog)) {
+            return false;
+        }
         PostingPlanLog that = (PostingPlanLog) o;
-        return lastBatchId == that.lastBatchId &&
-                Objects.equals(planId, that.planId) &&
-                Objects.equals(lastAccessTime, that.lastAccessTime) &&
-                lastOperation == that.lastOperation;
+        return lastBatchId == that.lastBatchId
+                && Objects.equals(planId, that.planId)
+                && Objects.equals(lastAccessTime, that.lastAccessTime)
+                && lastOperation == that.lastOperation;
     }
 
     @Override

@@ -1,15 +1,17 @@
 package com.rbkmoney.shumway.endpoint;
 
 import com.rbkmoney.damsel.accounter.AccounterSrv;
-import com.rbkmoney.damsel.merch_stat.MerchantStatisticsSrv;
-import com.rbkmoney.woody.api.event.CompositeServiceEventListener;
 import com.rbkmoney.woody.thrift.impl.http.THServiceBuilder;
-import com.rbkmoney.woody.thrift.impl.http.event.HttpServiceEventLogListener;
-import com.rbkmoney.woody.thrift.impl.http.event.ServiceEventLogListener;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import javax.servlet.*;
+import javax.servlet.GenericServlet;
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebServlet;
+
 import java.io.IOException;
 
 /**

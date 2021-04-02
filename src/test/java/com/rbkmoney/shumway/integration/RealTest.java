@@ -73,23 +73,32 @@ public class RealTest extends DaoTestBase {
                 .filter(entry -> entry.getKey().equals(PostingOperation.HOLD))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(), (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
-                        stringListMap -> stringListMap.entrySet().stream().map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue()))).collect(Collectors.toList())));
+                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(),
+                                (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
+                        stringListMap -> stringListMap.entrySet().stream()
+                                .map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue())))
+                                .collect(Collectors.toList())));
 
 
         commits = ops.stream()
                 .filter(entry -> entry.getKey().equals(PostingOperation.COMMIT))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(), (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
-                        stringListMap -> stringListMap.entrySet().stream().map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue()))).collect(Collectors.toList())));
+                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(),
+                                (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
+                        stringListMap -> stringListMap.entrySet().stream()
+                                .map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue())))
+                                .collect(Collectors.toList())));
 
         rollbacks = ops.stream()
                 .filter(entry -> entry.getKey().equals(PostingOperation.ROLLBACK))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(), (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
-                        stringListMap -> stringListMap.entrySet().stream().map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue()))).collect(Collectors.toList())));
+                        Collectors.toMap(PostingPlanChange::getId, o -> o.getBatch().getPostings(),
+                                (postings, postings2) -> Lists.newArrayList(Iterables.concat(postings, postings2))),
+                        stringListMap -> stringListMap.entrySet().stream()
+                                .map(o -> new PostingPlanChange(o.getKey(), new PostingBatch(1L, o.getValue())))
+                                .collect(Collectors.toList())));
 
 
     }
@@ -126,39 +135,43 @@ public class RealTest extends DaoTestBase {
     private Map.Entry<PostingOperation, PostingPlanChange> parsePostingPlanInfo(String nextLine) {
         String[] strings = nextLine.split(",");
         String id = strings[0];
-        String plan_id = strings[1];
-        Long batch_id = Long.parseLong(strings[2]);
-        Long from_account_id = Long.parseLong(strings[3]);
-        Long to_account_id = Long.parseLong(strings[4]);
+        String planId = strings[1];
+        Long batchId = Long.parseLong(strings[2]);
+        Long fromAccountId = Long.parseLong(strings[3]);
+        Long toAccountId = Long.parseLong(strings[4]);
         String operation = strings[5];
         Long amount = Long.parseLong(strings[6]);
-        String creation_time = strings[7];
-        String curr_sym_code = strings[8];
+        String creationTime = strings[7];
+        String currSymCode = strings[8];
         String description = "";
-        if (strings.length == 10)
+        if (strings.length == 10) {
             description = strings[9];
+        }
 
         return Map.entry(
                 PostingOperation.valueOf(operation),
-                new PostingPlanChange(plan_id, new PostingBatch(batch_id, List.of(new Posting(from_account_id, to_account_id, amount, curr_sym_code, description)))));
+                new PostingPlanChange(planId, new PostingBatch(batchId,
+                        List.of(new Posting(fromAccountId, toAccountId, amount, currSymCode, description)))));
     }
 
     private void createAccounts(Posting posting) {
         jdbcTemplate.update("INSERT INTO shm.account(id, curr_sym_code, creation_time, description) " +
-                "VALUES (?,?,?,?) " +
-                "ON CONFLICT ON CONSTRAINT account_pkey DO NOTHING;", (ps) -> {
-            ps.setLong(1, posting.getFromId());
-            ps.setString(2, posting.getCurrencySymCode());
-            ps.setObject(3, Instant.now(), OTHER);
-            ps.setString(4, posting.getDescription());
-        });
+                        "VALUES (?,?,?,?) " +
+                        "ON CONFLICT ON CONSTRAINT account_pkey DO NOTHING;",
+                (ps) -> {
+                    ps.setLong(1, posting.getFromId());
+                    ps.setString(2, posting.getCurrencySymCode());
+                    ps.setObject(3, Instant.now(), OTHER);
+                    ps.setString(4, posting.getDescription());
+                });
         jdbcTemplate.update("INSERT INTO shm.account(id, curr_sym_code, creation_time, description) " +
-                "VALUES (?,?,?,?) " +
-                "ON CONFLICT ON CONSTRAINT account_pkey DO NOTHING;", (ps) -> {
-            ps.setLong(1, posting.getToId());
-            ps.setString(2, posting.getCurrencySymCode());
-            ps.setObject(3, Instant.now(), OTHER);
-            ps.setString(4, posting.getDescription());
-        });
+                        "VALUES (?,?,?,?) " +
+                        "ON CONFLICT ON CONSTRAINT account_pkey DO NOTHING;",
+                (ps) -> {
+                    ps.setLong(1, posting.getToId());
+                    ps.setString(2, posting.getCurrencySymCode());
+                    ps.setObject(3, Instant.now(), OTHER);
+                    ps.setString(4, posting.getDescription());
+                });
     }
 }

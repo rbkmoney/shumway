@@ -1,6 +1,10 @@
 package com.rbkmoney.shumway.integration;
 
-import com.rbkmoney.easyway.*;
+import com.rbkmoney.easyway.AbstractTestUtils;
+import com.rbkmoney.easyway.EnvironmentProperties;
+import com.rbkmoney.easyway.TestContainers;
+import com.rbkmoney.easyway.TestContainersBuilder;
+import com.rbkmoney.easyway.TestContainersParameters;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.ClassRule;
 import org.junit.runner.Description;
@@ -22,9 +26,10 @@ import java.util.function.Consumer;
 @Slf4j
 public abstract class DaoTestBase extends AbstractTestUtils {
 
-    private static TestContainers testContainers = TestContainersBuilder.builderWithTestContainers(TestContainersParameters::new)
-            .addPostgresqlTestContainer()
-            .build();
+    private static TestContainers testContainers =
+            TestContainersBuilder.builderWithTestContainers(TestContainersParameters::new)
+                    .addPostgresqlTestContainer()
+                    .build();
 
     @ClassRule
     public static final FailureDetectingExternalResource resource = new FailureDetectingExternalResource() {
@@ -45,6 +50,18 @@ public abstract class DaoTestBase extends AbstractTestUtils {
         }
     };
 
+    private static Consumer<EnvironmentProperties> getEnvironmentPropertiesConsumer() {
+        return environmentProperties -> {
+            PostgreSQLContainer postgreSqlContainer = testContainers.getPostgresqlTestContainer().get();
+            environmentProperties.put("spring.datasource.url", postgreSqlContainer.getJdbcUrl());
+            environmentProperties.put("spring.datasource.username", postgreSqlContainer.getUsername());
+            environmentProperties.put("spring.datasource.password", postgreSqlContainer.getPassword());
+            environmentProperties.put("spring.flyway.url", postgreSqlContainer.getJdbcUrl());
+            environmentProperties.put("spring.flyway.user", postgreSqlContainer.getUsername());
+            environmentProperties.put("spring.flyway.password", postgreSqlContainer.getPassword());
+        };
+    }
+
     public static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
         @Override
@@ -53,17 +70,5 @@ public abstract class DaoTestBase extends AbstractTestUtils {
                     .of(testContainers.getEnvironmentProperties(getEnvironmentPropertiesConsumer()))
                     .applyTo(configurableApplicationContext);
         }
-    }
-
-    private static Consumer<EnvironmentProperties> getEnvironmentPropertiesConsumer() {
-        return environmentProperties -> {
-            PostgreSQLContainer postgreSQLContainer = testContainers.getPostgresqlTestContainer().get();
-            environmentProperties.put("spring.datasource.url", postgreSQLContainer.getJdbcUrl());
-            environmentProperties.put("spring.datasource.username", postgreSQLContainer.getUsername());
-            environmentProperties.put("spring.datasource.password", postgreSQLContainer.getPassword());
-            environmentProperties.put("spring.flyway.url", postgreSQLContainer.getJdbcUrl());
-            environmentProperties.put("spring.flyway.user", postgreSQLContainer.getUsername());
-            environmentProperties.put("spring.flyway.password", postgreSQLContainer.getPassword());
-        };
     }
 }
