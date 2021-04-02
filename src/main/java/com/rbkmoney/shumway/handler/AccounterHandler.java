@@ -4,13 +4,11 @@ import com.rbkmoney.damsel.accounter.Account;
 import com.rbkmoney.damsel.accounter.AccountNotFound;
 import com.rbkmoney.damsel.accounter.AccountPrototype;
 import com.rbkmoney.damsel.accounter.AccounterSrv;
-import com.rbkmoney.damsel.accounter.InvalidPostingParams;
 import com.rbkmoney.damsel.accounter.PlanNotFound;
 import com.rbkmoney.damsel.accounter.PostingBatch;
 import com.rbkmoney.damsel.accounter.PostingPlan;
 import com.rbkmoney.damsel.accounter.PostingPlanChange;
 import com.rbkmoney.damsel.accounter.PostingPlanLog;
-import com.rbkmoney.damsel.base.InvalidRequest;
 import com.rbkmoney.shumway.dao.DaoException;
 import com.rbkmoney.shumway.domain.AccountState;
 import com.rbkmoney.shumway.domain.PostingLog;
@@ -44,8 +42,8 @@ public class AccounterHandler implements AccounterSrv.Iface {
 
     private final TransactionTemplate transactionTemplate;
 
-    private AccountService accountService;
-    private PostingPlanService planService;
+    private final AccountService accountService;
+    private final PostingPlanService planService;
 
     public AccounterHandler(
             AccountService accountService,
@@ -62,19 +60,18 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     @Override
-    public PostingPlanLog hold(PostingPlanChange planChange) throws InvalidPostingParams, InvalidRequest, TException {
+    public PostingPlanLog hold(PostingPlanChange planChange) throws TException {
         return doSafeOperation(new PostingPlan(planChange.getId(), Arrays.asList(planChange.getBatch())),
                 PostingOperation.HOLD);
     }
 
     @Override
-    public PostingPlanLog commitPlan(PostingPlan postingPlan) throws InvalidPostingParams, InvalidRequest, TException {
+    public PostingPlanLog commitPlan(PostingPlan postingPlan) throws TException {
         return doSafeOperation(postingPlan, PostingOperation.COMMIT);
     }
 
     @Override
-    public PostingPlanLog rollbackPlan(PostingPlan postingPlan)
-            throws InvalidPostingParams, InvalidRequest, TException {
+    public PostingPlanLog rollbackPlan(PostingPlan postingPlan) throws TException {
         return doSafeOperation(postingPlan, PostingOperation.ROLLBACK);
     }
 
@@ -90,10 +87,10 @@ public class AccounterHandler implements AccounterSrv.Iface {
                             domainStAccount -> ProtocolConverter.convertFromDomainAccount(domainStAccount)
                     ));
             PostingPlanLog protocolPostingPlanLog = new PostingPlanLog(affectedProtocolAccounts);
-            log.info("Response: {}", protocolPostingPlanLog);
+            log.info("PostingPlanLog of affected accounts: {}", protocolPostingPlanLog);
             return protocolPostingPlanLog;
         } catch (Exception e) {
-            log.error("Request processing error: ", e);
+            log.error("PostingOperation processing error: ", e);
             if (e instanceof TransactionException) {
                 throw new WUnavailableResultException(e);
             } else if (e.getCause() instanceof TException) {
@@ -122,13 +119,13 @@ public class AccounterHandler implements AccounterSrv.Iface {
                     : planService.createOrUpdatePostingPlan(receivedDomainPlanLog);
             com.rbkmoney.shumway.domain.PostingPlanLog oldDomainPlanLog = postingPlanLogPair.getKey();
             com.rbkmoney.shumway.domain.PostingPlanLog currDomainPlanLog = postingPlanLogPair.getValue();
+            log.info("Old plan log is {}, curr plan log is {}", oldDomainPlanLog, currDomainPlanLog);
 
             PostingOperation prevOperation =
                     oldDomainPlanLog == null ? PostingOperation.HOLD : oldDomainPlanLog.getLastOperation();
             if (currDomainPlanLog == null) {
                 throw validatePlanNotFixedResult(receivedDomainPlanLog, oldDomainPlanLog, !finalOp);
             } else {
-
                 Map<Long, List<PostingLog>> savedDomainPostingLogs =
                         planService.getPostingLogs(currDomainPlanLog.getPlanId(), prevOperation);
 
@@ -142,7 +139,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                 Map<Long, AccountState> resultAccStates;
                 Map<Long, StatefulAccount> savedDomainStatefulAcc;
                 if (prevOperation == operation && newProtocolBatches.isEmpty()) {
-                    log.info("This is duplicate request");
+                    log.info("This is duplicate request: {}", operation);
                     savedDomainStatefulAcc = accountService.getStatefulAccounts(
                             postingPlan.getBatchList(),
                             postingPlan.getId(),
@@ -159,6 +156,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                             .flatMap(batch -> batch.getPostings().stream().map(posting -> ProtocolConverter
                                     .convertToDomainPosting(posting, batch, currDomainPlanLog)))
                             .collect(Collectors.toList());
+                    log.info("New posting logs are {}", newDomainPostingLogs);
                     planService.addPostingLogs(newDomainPostingLogs);
                     if (PostingOperation.HOLD.equals(operation)) {
                         List<PostingLog> savedDomainPostingLogList = savedDomainPostingLogs.values().stream()
@@ -180,6 +178,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
                         );
                     }
                 }
+                log.info("Result account state is {}", resultAccStates);
                 return accountService.getStatefulAccounts(savedDomainStatefulAcc, () -> resultAccStates);
             }
         } catch (TException e) {
@@ -188,7 +187,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     @Override
-    public PostingPlan getPlan(String planId) throws PlanNotFound, InvalidRequest, TException {
+    public PostingPlan getPlan(String planId) throws TException {
         log.info("New GetPlan request, id: {}", planId);
 
         com.rbkmoney.shumway.domain.PostingPlanLog domainPostingPlan;
@@ -224,7 +223,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     @Override
-    public long createAccount(AccountPrototype accountPrototype) throws InvalidRequest, TException {
+    public long createAccount(AccountPrototype accountPrototype) throws TException {
         log.info("New CreateAccount request, proto: {}", accountPrototype);
         com.rbkmoney.shumway.domain.Account domainPrototype = convertToDomainAccount(accountPrototype);
         long response;
@@ -242,7 +241,7 @@ public class AccounterHandler implements AccounterSrv.Iface {
     }
 
     @Override
-    public Account getAccountByID(long id) throws AccountNotFound, TException {
+    public Account getAccountByID(long id) throws TException {
         log.info("New GetAccountById request, id: {}", id);
         StatefulAccount domainAccount;
         try {

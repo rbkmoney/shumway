@@ -46,17 +46,17 @@ public class AccountService {
     }
 
     public StatefulAccount getStatefulAccount(long id) {
-        log.info("Get stateful account: {}", id);
+        log.debug("Get stateful account: {}", id);
         Map<Long, StatefulAccount> result = accountDao.getStateful(Arrays.asList(id));
-        log.info("Got accounts: {}:{}", result.size(), result.values());
+        log.debug("Got accounts: {}:{}", result.size(), result.values());
         return result.get(id);
     }
 
     public Map<Long, StatefulAccount> getStatefulAccounts(Collection<PostingBatch> batches) {
         Collection<Long> uniqAccIds = getUnicAccountIds.apply(batches);
-        log.info("Get stateful accounts: {}", uniqAccIds);
+        log.debug("Get stateful accounts: {}", uniqAccIds);
         Map<Long, StatefulAccount> result = accountDao.getStateful(uniqAccIds);
-        log.info("Got accounts: {}:{}", result.size(), result.values());
+        log.debug("Got accounts: {}:{}", result.size(), result.values());
         return result;
     }
 
@@ -78,17 +78,17 @@ public class AccountService {
     ) {
         long lastBatchId = finalOp ? Long.MAX_VALUE : batches.stream().mapToLong(PostingBatch::getId).max().getAsLong();
         Collection<Long> uniqAccIds = getUnicAccountIds.apply(batches);
-        log.info("Get stateful accounts: {}, plan: {}, up to batch: {}", uniqAccIds, planId, lastBatchId);
+        log.debug("Get stateful accounts: {}, plan: {}, up to batch: {}", uniqAccIds, planId, lastBatchId);
         Map<Long, StatefulAccount> result = accountDao.getStatefulUpTo(uniqAccIds, planId, lastBatchId);
-        log.info("Got accounts: {}:{}", result.size(), result.values());
+        log.debug("Got accounts: {}:{}", result.size(), result.values());
         return result;
     }
 
     public Map<Long, StatefulAccount> getStatefulExclusiveAccounts(Collection<PostingBatch> batches) {
         Collection<Long> uniqAccIds = getUnicAccountIds.apply(batches);
-        log.info("Get stateful exclusive accounts by ids: {}", uniqAccIds);
+        log.debug("Get stateful exclusive accounts by ids: {}", uniqAccIds);
         Map<Long, StatefulAccount> result = accountDao.getStatefulExclusive(uniqAccIds);
-        log.info("Got exclusive accounts: {}:{}", result.size(), result.values());
+        log.debug("Got exclusive accounts: {}:{}", result.size(), result.values());
         return result;
     }
 
@@ -146,9 +146,9 @@ public class AccountService {
             resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(),
                     accountLog.getMaxAccumulated()));
         }
-        log.info("Add account hold logs: {}", accountLogs);
+        log.debug("Add account hold logs: {}", accountLogs);
         accountDao.addLogs(accountLogs);
-        log.info("Added hold logs: {}", accountLogs.size());
+        log.debug("Added hold logs: {}", accountLogs.size());
         return resultAccStates;
     }
 
@@ -174,9 +174,9 @@ public class AccountService {
             resultAccStates.put(accId, new AccountState(accountLog.getOwnAccumulated(), accountLog.getMinAccumulated(),
                     accountLog.getMaxAccumulated()));
         }
-        log.info("Add account c/r logs: {}", accountLogs);
+        log.debug("Add account c/r logs: {}", accountLogs);
         accountDao.addLogs(accountLogs);
-        log.info("Added c/r logs: {}", accountLogs.size());
+        log.debug("Added c/r logs: {}", accountLogs.size());
         return resultAccStates;
     }
 

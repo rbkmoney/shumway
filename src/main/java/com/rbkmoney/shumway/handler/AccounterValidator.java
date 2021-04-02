@@ -212,7 +212,9 @@ public class AccounterValidator {
 
     public static TException validatePlanNotFixedResult(
             com.rbkmoney.shumway.domain.PostingPlanLog receivedDomainPlanLog,
-            com.rbkmoney.shumway.domain.PostingPlanLog oldDomainPlanLog, boolean failIfNoPlan) {
+            com.rbkmoney.shumway.domain.PostingPlanLog oldDomainPlanLog,
+            boolean failIfNoPlan
+    ) {
         log.warn("Posting plan log create/update is not performed");
         if (oldDomainPlanLog == null) {
             if (failIfNoPlan) {
