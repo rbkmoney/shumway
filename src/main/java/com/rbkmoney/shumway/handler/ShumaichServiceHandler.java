@@ -25,7 +25,8 @@ public class ShumaichServiceHandler implements AccounterSrv.Iface {
             shumpuneServiceHandler.hold(ShumaichProtocolConverter.convertToOldPostingPlanChange(postingPlanChange));
             return holdClock;
         } catch (NotReady ex) {
-            throw new NotReady(ex);
+            log.error("Shumpune is not ready yet", ex);
+            throw ex;
         }
     }
 
