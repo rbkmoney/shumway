@@ -11,6 +11,7 @@ build('shumway', 'java-maven') {
     def serviceName = env.REPO_NAME
     def mvnArgs = '-DjvmArgs="-Xmx256m"'
     def useJava11 = true
+    env.skipDtrack = true
 
     javaServicePipeline(serviceName, useJava11, mvnArgs)
 }
