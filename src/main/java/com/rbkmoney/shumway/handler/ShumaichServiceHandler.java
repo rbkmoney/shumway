@@ -18,11 +18,15 @@ public class ShumaichServiceHandler implements AccounterSrv.Iface {
 
     @Override
     public Clock hold(PostingPlanChange postingPlanChange, Clock clock) throws TException {
-        log.info("Shumaich in shumway hold method called with postingPlanChange: {}", postingPlanChange);
-        Clock holdClock = shumaichClient.hold(postingPlanChange, clock);
-        accountService.createAccountsIfDontExist(postingPlanChange);
-        shumpuneServiceHandler.hold(ShumaichProtocolConverter.convertToOldPostingPlanChange(postingPlanChange));
-        return holdClock;
+        try {
+            log.info("Shumaich in shumway hold method called with postingPlanChange: {}", postingPlanChange);
+            Clock holdClock = shumaichClient.hold(postingPlanChange, clock);
+            accountService.createAccountsIfDontExist(postingPlanChange);
+            shumpuneServiceHandler.hold(ShumaichProtocolConverter.convertToOldPostingPlanChange(postingPlanChange));
+            return holdClock;
+        } catch (NotReady ex) {
+            throw new NotReady(ex);
+        }
     }
 
     @Override
