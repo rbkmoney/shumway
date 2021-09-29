@@ -128,7 +128,7 @@
         <dependency>
             <groupId>com.rbkmoney</groupId>
             <artifactId>shumaich-proto</artifactId>
-            <version>1.40-be2c835</version>
+            <version>1.42-32f6ad3</version>
         </dependency>
         <!--Test libs-->
         <dependency>
@@ -169,12 +169,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.14.3</version>
+            <version>1.16.0</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
-            <version>1.14.3</version>
+            <version>1.16.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
